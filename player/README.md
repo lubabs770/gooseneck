@@ -3,6 +3,18 @@
 A terminal UI for browsing the `artists.json` catalog and streaming artists
 straight into a media player via `yt-dlp`.
 
+## Install
+
+Detects your OS/arch and grabs the matching binary from the latest release:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/lubabs770/gooseneck/main/install.sh | sh
+```
+
+Installs to `~/.local/bin` (override with `BIN_DIR=`, pin with `VERSION=vX.Y.Z`).
+Windows: download the `.exe` from the [releases page](https://github.com/lubabs770/gooseneck/releases).
+Needs a published release — see [Build player](../.github/workflows/build-player.yml) CI (tag `v*` to cut one). Runtime deps: `yt-dlp` + `mpv`.
+
 ## Build
 
 ```sh
