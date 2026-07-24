@@ -27,11 +27,13 @@ Requires Go 1.23+. Runtime deps: `yt-dlp` and a player (`mpv` by default).
 ## Run
 
 ```sh
-./gooseneck-player
+goose            # or: gooseneck-player
 ```
 
-It auto-detects `artists.json` next to the binary or in the repo root (one dir
-up). Override the path in the config file if needed.
+No data file needed: on first run it downloads the catalog from the skmusic
+worker (`artists_url`) and caches it at `~/.config/gooseneck/artists.json`. A
+local `artists.json` next to the binary or in the repo root is used instead when
+present (dev convenience). Override the path via `artists_json` in the config.
 
 ## Config
 
@@ -41,7 +43,8 @@ Written on first run to `~/.config/gooseneck/config.toml`:
 bin_dir      = ""            # directory holding yt-dlp; "" = use $PATH
 player       = "mpv"         # media player; $APP env var overrides this
 player_args  = ["--no-video"] # audio-only by default
-artists_json = ""            # path to artists.json; "" = auto-detect
+artists_json = ""            # explicit path; "" = auto-detect/download
+artists_url  = "https://skmusic.shalomkarr.workers.dev/data/artists.json"
 theme        = "default"     # default | gruvbox | nord | mono
 view         = "grid"        # grid | list
 ```

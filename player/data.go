@@ -3,8 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // Artist mirrors one record in artists.json. Unknown fields are ignored, so new
@@ -29,15 +32,26 @@ type artistsFile struct {
 	Artists []Artist `json:"artists"`
 }
 
-// loadArtists reads artists.json. It accepts either the wrapped {count,artists}
-// shape or a bare array, and auto-detects the path when cfg.ArtistsJSON is empty.
+// loadArtists resolves the catalog, in order of preference:
+//  1. cfg.ArtistsJSON (explicit path)
+//  2. a local artists.json next to the binary / repo root (dev convenience)
+//  3. the cached download in the config dir
+//  4. download from cfg.ArtistsURL and cache it
+// It accepts either the wrapped {count,artists} shape or a bare array.
 func loadArtists(cfg Config) ([]Artist, error) {
 	path := cfg.ArtistsJSON
 	if path == "" {
 		path = findArtistsJSON()
 	}
 	if path == "" {
-		return nil, fmt.Errorf("artists.json not found; set artists_json in config")
+		cached := artistsCachePath()
+		if _, err := os.Stat(cached); err == nil {
+			path = cached
+		} else if err := downloadArtists(cfg.ArtistsURL, cached); err != nil {
+			return nil, err
+		} else {
+			path = cached
+		}
 	}
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -66,9 +80,38 @@ func findArtistsJSON() string {
 			filepath.Join(d, "..", "artists.json"))
 	}
 	for _, c := range candidates {
-		if _, err := os.Stat(c); err == nil {
+		b, err := os.ReadFile(c)
+		if err == nil && json.Valid(b) { // skip stray/HTML files that aren't our catalog
 			return c
 		}
 	}
 	return ""
+}
+
+// downloadArtists fetches the catalog from url, validates it is JSON, and writes
+// it to dest (creating parent dirs).
+func downloadArtists(url, dest string) error {
+	if url == "" {
+		return fmt.Errorf("no artists source: set artists_json or artists_url in config")
+	}
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(url)
+	if err != nil {
+		return fmt.Errorf("download %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("download %s: HTTP %d", url, resp.StatusCode)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 32<<20)) // 32 MiB cap
+	if err != nil {
+		return err
+	}
+	if !json.Valid(body) {
+		return fmt.Errorf("download %s: response was not valid JSON (wrong URL?)", url)
+	}
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(dest, body, 0o644)
 }

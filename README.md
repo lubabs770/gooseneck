@@ -11,10 +11,14 @@ Detects your OS/arch and grabs the matching binary from the latest release:
 curl -fsSL https://raw.githubusercontent.com/lubabs770/gooseneck/main/install.sh | sh
 ```
 
-Installs to `~/.local/bin` (override with `BIN_DIR=`, pin a version with
-`VERSION=vX.Y.Z`). Windows: download the `.exe` from the
+Installs two commands — **`gooseneck-player`** and the short alias **`goose`** —
+to `~/.local/bin` (override with `BIN_DIR=`, pin a version with `VERSION=vX.Y.Z`).
+Windows: download the `.exe` from the
 [releases page](https://github.com/lubabs770/gooseneck/releases).
 Runtime deps: `yt-dlp` + `mpv`.
+
+On first run it auto-downloads the catalog from the skmusic worker and caches it
+in `~/.config/gooseneck/` — no `artists.json` needed. Just run `goose`.
 
 ## What's here
 

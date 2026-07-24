@@ -13,10 +13,14 @@ type Config struct {
 	BinDir      string   `toml:"bin_dir"`      // dir holding yt-dlp; "" = use PATH
 	Player      string   `toml:"player"`       // media player binary ($APP overrides)
 	PlayerArgs  []string `toml:"player_args"`  // extra args, e.g. ["--no-video"]
-	ArtistsJSON string   `toml:"artists_json"` // path to artists.json; "" = auto-detect
+	ArtistsJSON string   `toml:"artists_json"` // path to artists.json; "" = auto-detect/download
+	ArtistsURL  string   `toml:"artists_url"`  // source to download artists.json from
 	Theme       string   `toml:"theme"`        // theme name (see theme.go)
 	View        string   `toml:"view"`         // "grid" | "list"
 }
+
+// defaultArtistsURL is the skmusic worker endpoint serving the scraped catalog.
+const defaultArtistsURL = "https://skmusic.shalomkarr.workers.dev/data/artists.json"
 
 func configDir() string {
 	base, err := os.UserConfigDir()
@@ -32,6 +36,7 @@ func defaultConfig() Config {
 		Player:      "mpv",
 		PlayerArgs:  []string{"--no-video"},
 		ArtistsJSON: "",
+		ArtistsURL:  defaultArtistsURL,
 		Theme:       "default",
 		View:        "grid",
 	}
@@ -55,7 +60,15 @@ func loadConfig() (Config, error) {
 	if _, err := toml.DecodeFile(path, &cfg); err != nil {
 		return cfg, err
 	}
+	if cfg.ArtistsURL == "" { // backfill for configs written before this field existed
+		cfg.ArtistsURL = defaultArtistsURL
+	}
 	return applyEnv(cfg), nil
+}
+
+// artistsCachePath is where a downloaded catalog is cached.
+func artistsCachePath() string {
+	return filepath.Join(configDir(), "artists.json")
 }
 
 // applyEnv lets $APP override the configured player at runtime.

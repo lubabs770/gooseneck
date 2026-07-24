@@ -48,7 +48,10 @@ chmod +x "$tmp"
 mv "$tmp" "$BIN_DIR/${APP}"
 trap - EXIT
 
-echo "Installed. Runtime deps: yt-dlp + mpv."
+# short alias: `goose`
+ln -sf "$BIN_DIR/${APP}" "$BIN_DIR/goose"
+
+echo "Installed as '${APP}' and 'goose'. Runtime deps: yt-dlp + mpv."
 case ":$PATH:" in
 	*":$BIN_DIR:"*) : ;;
 	*) echo "note: $BIN_DIR is not on your PATH — add it, e.g.:"
