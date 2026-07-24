@@ -399,6 +399,9 @@ func (m model) selected() (item, bool) {
 }
 
 func (m model) drill() (tea.Model, tea.Cmd) {
+	if m.indexing {
+		return m, nil // ignore input while an index is in flight
+	}
 	it, ok := m.selected()
 	if !ok {
 		return m, nil

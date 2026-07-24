@@ -3,6 +3,11 @@
 A terminal UI for browsing the `artists.json` catalog and streaming artists
 straight into a media player via `yt-dlp`.
 
+![demo](../demo.gif)
+
+Demo recorded with [VHS](https://github.com/charmbracelet/vhs) — see
+[`demo.tape`](demo.tape). Regenerate with `vhs demo.tape` after building.
+
 ## Install
 
 Detects your OS/arch and grabs the matching binary from the latest release:

@@ -3,6 +3,8 @@
 Jewish music catalog (`artists.json`, ~1600 artists) plus a terminal player that
 streams any artist straight into `mpv` via `yt-dlp`.
 
+![gooseneck-player demo](demo.gif)
+
 ## Install
 
 Detects your OS/arch and grabs the matching binary from the latest release:
