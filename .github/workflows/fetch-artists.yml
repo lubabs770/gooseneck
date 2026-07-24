@@ -1,0 +1,39 @@
+name: Fetch artists.json
+
+on:
+  workflow_dispatch:        # manual "Run workflow" button
+  schedule:
+    - cron: "0 6 * * *"     # daily 06:00 UTC (optional; edit or delete)
+
+permissions:
+  contents: write           # allow the action to commit back
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download artists.json
+        run: |
+          curl -fsSL \
+            -H "Accept: application/json" \
+            "https://skmusic.shalomkarr.workers.dev/data/artists.json" \
+            -o artists.json
+          # fail if we somehow got HTML instead of JSON
+          head -c 1 artists.json | grep -q '[[{]' || {
+            echo "::error::Response was not JSON"; exit 1; }
+          python3 -m json.tool artists.json > /dev/null
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- artists.json; then
+            echo "No changes."
+          else
+            git add artists.json
+            git commit -m "chore: update artists.json ($(date -u +%Y-%m-%dT%H:%MZ))"
+            git push
+          fi
