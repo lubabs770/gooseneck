@@ -58,9 +58,9 @@ so re-opening an artist is instant. Delete the file to force a refresh.
 | Key | Action |
 |-----|--------|
 | `h j k l` | move (arrows work too) |
-| `enter` | open artist → track list |
+| `enter` | drill in: artist → albums → tracks |
 | `⌫` / `h` (list view) | back |
-| `p` | play — on an artist queues all their tracks; on a track plays that one |
+| `p` | play — on an artist queues all their tracks; on an album queues that album; on a track plays that one |
 | `/` | fuzzy filter (fzf-style); `esc` clears |
 | `v` | toggle grid / list |
 | `t` | cycle theme |
@@ -70,16 +70,17 @@ so re-opening an artist is instant. Delete the file to force a refresh.
 
 ## How playback works
 
-Each artist entry is a YouTube Music "- Topic" channel id. The app resolves the
-channel's uploads with `yt-dlp` (cached in SQLite), then hands the watch URLs to
-the player. `mpv --no-video` streams audio only.
+Each artist entry is a YouTube Music "- Topic" channel id. Opening an artist fully
+extracts their uploads with `yt-dlp` and groups the tracks into albums by each
+track's `album` field; singles (album == title) collapse into one **Singles**
+bucket. This first extraction is slow (network per track) but the result is cached
+in SQLite, so re-opening is instant. Delete `cache.db` to force a re-index.
+Playback hands the watch URLs to the player; `mpv --no-video` streams audio only.
 
 ## Roadmap
 
 - **Artist profile pics** — each artist has a `thumbnail` URL in the catalog;
   render it in the grid via a terminal image protocol (kitty / sixel / iTerm2),
   falling back to the text card where unsupported.
-- **Album grouping** — the schema already has an `albums` table (channel
-  *releases*), unused for now; most of these Topic channels expose no releases
-  tab, so v1 is a flat artist → tracks view. Layer albums in for artists that
-  have it.
+- **Faster album indexing** — the per-track full extraction is the bottleneck;
+  explore batching or a lighter metadata source.

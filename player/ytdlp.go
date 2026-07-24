@@ -1,10 +1,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strings"
+	"time"
 )
+
+// albumKey builds the synthetic cache key for a grouped album. These are not real
+// YouTube playlists, so they're keyed by artist id + album name.
+func albumKey(artistID, album string) string { return artistID + "::" + album }
 
 // flatEntry is one entry from `yt-dlp --flat-playlist -J`.
 type flatEntry struct {
@@ -63,6 +70,77 @@ func tracksFromURL(cfg Config, url string) ([]Track, error) {
 		out = append(out, Track{VideoID: e.ID, Title: e.Title})
 	}
 	return out, nil
+}
+
+// fullEntry is one fully-extracted video from `yt-dlp -J` (no --flat-playlist),
+// which unlike the flat form includes album metadata.
+type fullEntry struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	Album string `json:"album"`
+}
+
+type fullDump struct {
+	Entries []fullEntry `json:"entries"`
+}
+
+// fetchArtistCatalog fully extracts an artist's uploads and groups them into
+// albums by the per-track `album` field. Tracks whose album is empty or equals
+// their own title (i.e. singles) are collected into one "Singles" bucket so the
+// album list stays meaningful. Returns the ordered albums plus a map of album
+// key -> its tracks. This is the slow path (network per video); callers cache it.
+func fetchArtistCatalog(cfg Config, channelID string) ([]Album, map[string][]Track, error) {
+	url := "https://www.youtube.com/channel/" + channelID
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, cfg.ytDlpPath(), "--ignore-errors", "-J", url)
+	cmd.Env = playbackEnv(cfg)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, nil, fmt.Errorf("yt-dlp: %w", err)
+	}
+	var dump fullDump
+	if err := json.Unmarshal(out, &dump); err != nil {
+		return nil, nil, fmt.Errorf("parse yt-dlp json: %w", err)
+	}
+
+	// group by album, preserving first-seen order
+	var order []string
+	grouped := map[string][]Track{}
+	for _, e := range dump.Entries {
+		if e.ID == "" {
+			continue
+		}
+		alb := strings.TrimSpace(e.Album)
+		if alb == "" {
+			alb = e.Title // treated as a single below
+		}
+		if _, seen := grouped[alb]; !seen {
+			order = append(order, alb)
+		}
+		grouped[alb] = append(grouped[alb], Track{VideoID: e.ID, Title: e.Title})
+	}
+
+	var albums []Album
+	tracksByKey := map[string][]Track{}
+	var singles []Track
+	for _, alb := range order {
+		ts := grouped[alb]
+		if len(ts) == 1 && strings.EqualFold(strings.TrimSpace(ts[0].Title), alb) {
+			singles = append(singles, ts...)
+			continue
+		}
+		key := albumKey(channelID, alb)
+		albums = append(albums, Album{PlaylistID: key, Title: alb})
+		tracksByKey[key] = ts
+	}
+	if len(singles) > 0 {
+		key := albumKey(channelID, "Singles")
+		albums = append(albums, Album{PlaylistID: key, Title: fmt.Sprintf("Singles (%d)", len(singles))})
+		tracksByKey[key] = singles
+	}
+	return albums, tracksByKey, nil
 }
 
 func flatPlaylist(cfg Config, url string) (flatDump, error) {

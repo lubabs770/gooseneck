@@ -44,8 +44,7 @@ Requires Go 1.23+.
 
 - **Artist profile pics** — render each artist's `thumbnail` in the grid via a
   terminal image protocol (kitty / sixel / iTerm2), text-card fallback.
-- **Album grouping** — use the dormant `albums` table for artists whose channel
-  exposes a releases tab (most Topic channels don't, so v1 is flat
-  artist → tracks).
+- **Faster album indexing** — first-time album grouping does a full `yt-dlp`
+  extraction per track; explore batching or a lighter metadata source.
 
 See [`player/README.md`](player/README.md#roadmap) for details.

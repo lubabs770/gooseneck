@@ -95,17 +95,23 @@ type tracksLoaded struct {
 	playNow           bool // play immediately instead of pushing a screen
 }
 
+// loadAlbumsCmd builds an artist's album list by fully extracting their uploads
+// and grouping by the `album` field (slow first time, then served from cache).
+// Album tracks are cached alongside so drilling into an album is instant.
 func (m *model) loadAlbumsCmd(a item) tea.Cmd {
 	cfg, cache := *m.cfg, m.cache
 	return func() tea.Msg {
 		if al, ok := cache.Albums(a.id); ok {
 			return albumsLoaded{a.id, a.title, al, nil}
 		}
-		al, err := fetchAlbums(cfg, a.id)
+		albums, tracksByKey, err := fetchArtistCatalog(cfg, a.id)
 		if err == nil {
-			cache.PutAlbums(a.id, al)
+			cache.PutAlbums(a.id, albums)
+			for _, alb := range albums {
+				cache.PutTracks(alb.PlaylistID, tracksByKey[alb.PlaylistID])
+			}
 		}
-		return albumsLoaded{a.id, a.title, al, err}
+		return albumsLoaded{a.id, a.title, albums, err}
 	}
 }
 
@@ -336,12 +342,10 @@ func (m model) drill() (tea.Model, tea.Cmd) {
 	switch m.cur().kind {
 	case artistsScreen:
 		m.loading = true
-		m.status = "loading tracks…"
-		return m, m.loadArtistTracksCmd(it, false)
+		m.status = "indexing albums… (first time is slow, then cached)"
+		return m, m.loadAlbumsCmd(it)
 	case albumsScreen:
-		m.loading = true
-		m.status = "loading tracks…"
-		return m, m.loadTracksCmd(it, false)
+		return m.openAlbum(it)
 	case tracksScreen:
 		if err := play(*m.cfg, []string{it.id}); err != nil {
 			m.status = "play error: " + err.Error()
@@ -352,6 +356,22 @@ func (m model) drill() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// openAlbum pushes a tracks screen from the album's cached tracks (populated when
+// the album list was built, so no network call here).
+func (m model) openAlbum(it item) (tea.Model, tea.Cmd) {
+	tr, _ := m.cache.Tracks(it.id)
+	if len(tr) == 0 {
+		m.status = "no cached tracks for " + it.title
+		return m, nil
+	}
+	lv := level{kind: tracksScreen, title: it.title, playlistID: it.id}
+	for _, t := range tr {
+		lv.items = append(lv.items, item{title: t.Title, subtitle: t.VideoID, id: t.VideoID})
+	}
+	m.pushLevel(lv)
+	return m, nil
+}
+
 func (m model) playCurrent() (tea.Model, tea.Cmd) {
 	it, ok := m.selected()
 	if !ok {
@@ -359,9 +379,21 @@ func (m model) playCurrent() (tea.Model, tea.Cmd) {
 	}
 	switch m.cur().kind {
 	case albumsScreen:
-		m.loading = true
-		m.status = "queuing album…"
-		return m, m.loadTracksCmd(it, true)
+		tr, _ := m.cache.Tracks(it.id)
+		if len(tr) == 0 {
+			m.status = "no cached tracks for " + it.title
+			return m, nil
+		}
+		ids := make([]string, len(tr))
+		for i, t := range tr {
+			ids[i] = t.VideoID
+		}
+		if err := play(*m.cfg, ids); err != nil {
+			m.status = "play error: " + err.Error()
+		} else {
+			m.status = fmt.Sprintf("▶ %s (%d)", it.title, len(ids))
+		}
+		return m, nil
 	case tracksScreen:
 		if err := play(*m.cfg, []string{it.id}); err != nil {
 			m.status = "play error: " + err.Error()
