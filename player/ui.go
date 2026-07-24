@@ -42,6 +42,8 @@ type model struct {
 	themeName string
 	st        styles
 	view      string // "grid" | "list"
+	showHelp  bool   // runtime toggle, seeded from cfg.ShowHelp
+	caret     bool   // show a ›caret on the selection, seeded from cfg.Caret
 
 	width, height int
 
@@ -50,6 +52,12 @@ type model struct {
 	filter  string
 	status  string
 	loading bool
+
+	// album indexing progress
+	indexing bool
+	idxDone  int
+	idxTotal int
+	idxCh    chan tea.Msg
 }
 
 func newModel(cfg Config, cache *Cache, artists []Artist) model {
@@ -63,6 +71,8 @@ func newModel(cfg Config, cache *Cache, artists []Artist) model {
 		themeName: cfg.Theme,
 		st:        buildStyles(getTheme(cfg.Theme)),
 		view:      normView(cfg.View),
+		showHelp:  cfg.ShowHelp == nil || *cfg.ShowHelp,
+		caret:     cfg.Caret == nil || *cfg.Caret,
 		stack:     []level{root},
 	}
 	m.recompute()
@@ -113,6 +123,49 @@ func (m *model) loadAlbumsCmd(a item) tea.Cmd {
 		}
 		return albumsLoaded{a.id, a.title, albums, err}
 	}
+}
+
+// indexProgress reports how many tracks have been extracted so far while
+// building an artist's album list. total 0 means the count is unknown.
+type indexProgress struct{ done, total int }
+
+// waitMsg blocks on the index channel, delivering the next progress/final msg.
+func waitMsg(ch chan tea.Msg) tea.Cmd {
+	return func() tea.Msg { return <-ch }
+}
+
+// startIndexCmd streams the artist's uploads via yt-dlp, emitting live progress
+// on m.idxCh, then groups+caches the albums and sends the final albumsLoaded.
+// Assumes the artist is not already cached (caller checks).
+func (m *model) startIndexCmd(a item) tea.Cmd {
+	ch := make(chan tea.Msg, 64)
+	m.idxCh = ch
+	m.indexing = true
+	m.idxDone, m.idxTotal = 0, 0
+	cfg, cache := *m.cfg, m.cache
+	go func() {
+		total := flatCount(cfg, a.id)
+		ch <- indexProgress{0, total}
+		var entries []fullEntry
+		err := streamArtistEntries(cfg, a.id, func(e fullEntry) {
+			entries = append(entries, e)
+			select { // drop intermediate ticks if the UI is behind
+			case ch <- indexProgress{len(entries), total}:
+			default:
+			}
+		})
+		if err != nil && len(entries) == 0 {
+			ch <- albumsLoaded{a.id, a.title, nil, err}
+			return
+		}
+		albums, tracksByKey := groupCatalog(a.id, entries)
+		cache.PutAlbums(a.id, albums)
+		for _, alb := range albums {
+			cache.PutTracks(alb.PlaylistID, tracksByKey[alb.PlaylistID])
+		}
+		ch <- albumsLoaded{a.id, a.title, albums, nil}
+	}()
+	return waitMsg(ch)
 }
 
 // loadArtistTracksCmd enumerates an artist's uploads (Topic channel) and caches
@@ -185,14 +238,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		return m, nil
 
+	case indexProgress:
+		m.idxDone, m.idxTotal = msg.done, msg.total
+		if m.idxCh != nil {
+			return m, waitMsg(m.idxCh) // keep pulling until the final albumsLoaded
+		}
+		return m, nil
+
 	case albumsLoaded:
 		m.loading = false
+		m.indexing = false
+		m.idxCh = nil
 		if msg.err != nil {
 			m.status = "yt-dlp error: " + msg.err.Error()
 			return m, nil
 		}
 		if len(msg.albums) == 0 {
-			m.status = "no releases found for " + msg.artistName
+			m.status = "no albums found for " + msg.artistName
 			return m, nil
 		}
 		lv := level{kind: albumsScreen, title: msg.artistName + " · Albums",
@@ -322,6 +384,8 @@ func (m model) updateNormal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.themeName = nextTheme(m.themeName)
 		m.st = buildStyles(getTheme(m.themeName))
 		m.status = "theme: " + m.themeName
+	case "?":
+		m.showHelp = !m.showHelp
 	}
 	return m, nil
 }
@@ -341,9 +405,14 @@ func (m model) drill() (tea.Model, tea.Cmd) {
 	}
 	switch m.cur().kind {
 	case artistsScreen:
-		m.loading = true
-		m.status = "indexing albums… (first time is slow, then cached)"
-		return m, m.loadAlbumsCmd(it)
+		if _, ok := m.cache.Albums(it.id); ok {
+			m.loading = true
+			m.status = "loading albums…"
+			return m, m.loadAlbumsCmd(it) // instant: served from cache
+		}
+		m.status = ""
+		cmd := m.startIndexCmd(it) // mutates m (indexing=true) before we return it
+		return m, cmd              // slow first time, with live progress bar
 	case albumsScreen:
 		return m.openAlbum(it)
 	case tracksScreen:
@@ -458,16 +527,42 @@ func (m model) View() string {
 	}
 
 	b.WriteString("\n")
-	if m.status != "" {
+	switch {
+	case m.indexing:
+		b.WriteString(m.renderIndexBar())
+	case m.status != "":
 		b.WriteString(m.st.loading.Render(m.status))
-	} else if m.cfg.ShowHelp == nil || *m.cfg.ShowHelp {
+	case m.showHelp:
 		b.WriteString(m.st.help.Render(m.helpLine()))
 	}
 	return b.String()
 }
 
 func (m model) helpLine() string {
-	return "hjkl move  enter open  ⌫ back  p play  / filter  v view  t theme  q quit"
+	return "hjkl move  enter open  ⌫ back  p play  / filter  v view  t theme  ? help  q quit"
+}
+
+// renderIndexBar draws the inline album-indexing progress bar.
+func (m model) renderIndexBar() string {
+	const w = 28
+	if m.idxTotal > 0 {
+		f := m.idxDone * w / m.idxTotal
+		if f > w {
+			f = w
+		}
+		bar := strings.Repeat("█", f) + strings.Repeat("░", w-f)
+		pct := m.idxDone * 100 / m.idxTotal
+		return m.st.loading.Render(fmt.Sprintf("indexing [%s] %d/%d  %d%%", bar, m.idxDone, m.idxTotal, pct))
+	}
+	return m.st.loading.Render(fmt.Sprintf("indexing… %d tracks", m.idxDone))
+}
+
+// caretPrefix returns the selection marker for a row, honoring the caret config.
+func (m model) caretPrefix(selected bool) string {
+	if m.caret && selected {
+		return "› "
+	}
+	return "  "
 }
 
 func (m model) renderList(h int) string {
@@ -478,9 +573,9 @@ func (m model) renderList(h int) string {
 		it := l.items[l.vis[i]]
 		text := truncate(vis(it.title), m.width-4)
 		if i == l.cursor {
-			lines = append(lines, m.st.rowSel.Render("› "+text))
+			lines = append(lines, m.st.rowSel.Render(m.caretPrefix(true)+text))
 		} else {
-			lines = append(lines, m.st.row.Render("  "+text))
+			lines = append(lines, m.st.row.Render(m.caretPrefix(false)+text))
 		}
 	}
 	return strings.Join(lines, "\n")
@@ -515,8 +610,16 @@ func (m model) renderGrid(h int) string {
 				break
 			}
 			it := l.items[l.vis[idx]]
-			label := truncate(vis(it.title), cardW-2)
-			label = pad(label, cardW-2)
+			var label string
+			if m.caret {
+				mark := "  "
+				if idx == l.cursor {
+					mark = "› "
+				}
+				label = mark + pad(truncate(vis(it.title), cardW-4), cardW-4)
+			} else {
+				label = pad(truncate(vis(it.title), cardW-2), cardW-2)
+			}
 			if idx == l.cursor {
 				cells = append(cells, m.st.cardSel.Render(label))
 			} else {

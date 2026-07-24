@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -104,11 +105,17 @@ func fetchArtistCatalog(cfg Config, channelID string) ([]Album, map[string][]Tra
 	if err := json.Unmarshal(out, &dump); err != nil {
 		return nil, nil, fmt.Errorf("parse yt-dlp json: %w", err)
 	}
+	albums, tracksByKey := groupCatalog(channelID, dump.Entries)
+	return albums, tracksByKey, nil
+}
 
-	// group by album, preserving first-seen order
+// groupCatalog groups fully-extracted entries into albums by their `album` field,
+// preserving first-seen order. Singles (album empty or == title) collapse into a
+// single "Singles" bucket.
+func groupCatalog(channelID string, entries []fullEntry) ([]Album, map[string][]Track) {
 	var order []string
 	grouped := map[string][]Track{}
-	for _, e := range dump.Entries {
+	for _, e := range entries {
 		if e.ID == "" {
 			continue
 		}
@@ -140,7 +147,50 @@ func fetchArtistCatalog(cfg Config, channelID string) ([]Album, map[string][]Tra
 		albums = append(albums, Album{PlaylistID: key, Title: fmt.Sprintf("Singles (%d)", len(singles))})
 		tracksByKey[key] = singles
 	}
-	return albums, tracksByKey, nil
+	return albums, tracksByKey
+}
+
+// flatCount returns how many tracks an artist has, via the cheap flat listing.
+// Used to size the indexing progress bar; 0 means unknown.
+func flatCount(cfg Config, channelID string) int {
+	dump, err := flatPlaylist(cfg, "https://www.youtube.com/channel/"+channelID)
+	if err != nil {
+		return 0
+	}
+	n := 0
+	for _, e := range dump.Entries {
+		if e.ID != "" {
+			n++
+		}
+	}
+	return n
+}
+
+// streamArtistEntries runs `yt-dlp -j` (one JSON object per line, emitted as each
+// track is extracted) and calls emit for every entry, enabling live progress.
+func streamArtistEntries(cfg Config, channelID string, emit func(fullEntry)) error {
+	url := "https://www.youtube.com/channel/" + channelID
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, cfg.ytDlpPath(), "--ignore-errors", "-j", url)
+	cmd.Env = playbackEnv(cfg)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	sc := bufio.NewScanner(stdout)
+	sc.Buffer(make([]byte, 1<<20), 16<<20) // entries can exceed the 64K default
+	for sc.Scan() {
+		var e fullEntry
+		if json.Unmarshal(sc.Bytes(), &e) == nil && e.ID != "" {
+			emit(e)
+		}
+	}
+	return cmd.Wait()
 }
 
 func flatPlaylist(cfg Config, url string) (flatDump, error) {

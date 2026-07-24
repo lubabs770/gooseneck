@@ -47,7 +47,8 @@ artists_json = ""            # explicit path; "" = auto-detect/download
 artists_url  = "https://skmusic.shalomkarr.workers.dev/data/artists.json"
 theme        = "default"     # default | gruvbox | nord | mono
 view         = "grid"        # grid | list
-show_help    = true          # show the key-hints line at the bottom
+show_help    = true          # show the key-hints line at startup (toggle live with ?)
+caret        = true          # show a ›caret on the selection in both grid and list
 ```
 
 The SQLite cache (`~/.config/gooseneck/cache.db`) stores each artist's track list
@@ -64,6 +65,7 @@ so re-opening an artist is instant. Delete the file to force a refresh.
 | `/` | fuzzy filter (fzf-style); `esc` clears |
 | `v` | toggle grid / list |
 | `t` | cycle theme |
+| `?` | toggle the key-hints line (starts from `show_help`) |
 | `g` / `G` | top / bottom |
 | `ctrl-d` / `ctrl-u` | half-page down / up |
 | `q` | quit |

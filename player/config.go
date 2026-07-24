@@ -17,7 +17,8 @@ type Config struct {
 	ArtistsURL  string   `toml:"artists_url"`  // source to download artists.json from
 	Theme       string   `toml:"theme"`        // theme name (see theme.go)
 	View        string   `toml:"view"`         // "grid" | "list"
-	ShowHelp    *bool    `toml:"show_help"`    // show the key hints line (default true)
+	ShowHelp    *bool    `toml:"show_help"`    // show the key hints line at startup (default true)
+	Caret       *bool    `toml:"caret"`        // show a ›caret on the selection, any view (default true)
 }
 
 func boolPtr(b bool) *bool { return &b }
@@ -43,6 +44,7 @@ func defaultConfig() Config {
 		Theme:       "default",
 		View:        "grid",
 		ShowHelp:    boolPtr(true),
+		Caret:       boolPtr(true),
 	}
 }
 
@@ -69,6 +71,9 @@ func loadConfig() (Config, error) {
 	}
 	if cfg.ShowHelp == nil { // absent in older configs -> default on
 		cfg.ShowHelp = boolPtr(true)
+	}
+	if cfg.Caret == nil {
+		cfg.Caret = boolPtr(true)
 	}
 	return applyEnv(cfg), nil
 }
