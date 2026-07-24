@@ -75,7 +75,10 @@ the player. `mpv --no-video` streams audio only.
 
 ## Roadmap
 
-The schema already has an `albums` table (channel *releases*), unused for now —
-most of these Topic channels expose no releases tab, so v1 is a flat
-artist → tracks view. Album grouping can be layered in later for artists that
-have it.
+- **Artist profile pics** — each artist has a `thumbnail` URL in the catalog;
+  render it in the grid via a terminal image protocol (kitty / sixel / iTerm2),
+  falling back to the text card where unsupported.
+- **Album grouping** — the schema already has an `albums` table (channel
+  *releases*), unused for now; most of these Topic channels expose no releases
+  tab, so v1 is a flat artist → tracks view. Layer albums in for artists that
+  have it.

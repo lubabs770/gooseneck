@@ -70,7 +70,7 @@ func buildStyles(t Theme) styles {
 		title:   lipgloss.NewStyle().Foreground(t.Accent).Bold(true),
 		help:    lipgloss.NewStyle().Foreground(t.Dim),
 		dim:     lipgloss.NewStyle().Foreground(t.Dim),
-		card:    base.Background(t.CardBg).Padding(0, 1).Margin(0, 1),
+		card:    base.Padding(0, 1).Margin(0, 1),
 		cardSel: lipgloss.NewStyle().Foreground(t.SelFg).Background(t.SelBg).Bold(true).Padding(0, 1).Margin(0, 1),
 		row:     base,
 		rowSel:  lipgloss.NewStyle().Foreground(t.SelFg).Background(t.SelBg).Bold(true),

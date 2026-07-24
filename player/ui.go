@@ -395,7 +395,7 @@ func (m model) View() string {
 
 	crumbs := make([]string, len(m.stack))
 	for i, l := range m.stack {
-		crumbs[i] = l.title
+		crumbs[i] = vis(l.title)
 	}
 	b.WriteString(m.st.title.Render(strings.Join(crumbs, " / ")))
 	b.WriteString("  ")
@@ -446,7 +446,7 @@ func (m model) renderList(h int) string {
 	var lines []string
 	for i := start; i < len(l.vis) && i < start+h; i++ {
 		it := l.items[l.vis[i]]
-		text := truncate(it.title, m.width-4)
+		text := truncate(vis(it.title), m.width-4)
 		if i == l.cursor {
 			lines = append(lines, m.st.rowSel.Render("› "+text))
 		} else {
@@ -485,7 +485,7 @@ func (m model) renderGrid(h int) string {
 				break
 			}
 			it := l.items[l.vis[idx]]
-			label := truncate(it.title, cardW-2)
+			label := truncate(vis(it.title), cardW-2)
 			label = pad(label, cardW-2)
 			if idx == l.cursor {
 				cells = append(cells, m.st.cardSel.Render(label))
