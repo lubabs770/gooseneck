@@ -17,7 +17,10 @@ type Config struct {
 	ArtistsURL  string   `toml:"artists_url"`  // source to download artists.json from
 	Theme       string   `toml:"theme"`        // theme name (see theme.go)
 	View        string   `toml:"view"`         // "grid" | "list"
+	ShowHelp    *bool    `toml:"show_help"`    // show the key hints line (default true)
 }
+
+func boolPtr(b bool) *bool { return &b }
 
 // defaultArtistsURL is the skmusic worker endpoint serving the scraped catalog.
 const defaultArtistsURL = "https://skmusic.shalomkarr.workers.dev/data/artists.json"
@@ -39,6 +42,7 @@ func defaultConfig() Config {
 		ArtistsURL:  defaultArtistsURL,
 		Theme:       "default",
 		View:        "grid",
+		ShowHelp:    boolPtr(true),
 	}
 }
 
@@ -62,6 +66,9 @@ func loadConfig() (Config, error) {
 	}
 	if cfg.ArtistsURL == "" { // backfill for configs written before this field existed
 		cfg.ArtistsURL = defaultArtistsURL
+	}
+	if cfg.ShowHelp == nil { // absent in older configs -> default on
+		cfg.ShowHelp = boolPtr(true)
 	}
 	return applyEnv(cfg), nil
 }

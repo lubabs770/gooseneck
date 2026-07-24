@@ -47,6 +47,7 @@ artists_json = ""            # explicit path; "" = auto-detect/download
 artists_url  = "https://skmusic.shalomkarr.workers.dev/data/artists.json"
 theme        = "default"     # default | gruvbox | nord | mono
 view         = "grid"        # grid | list
+show_help    = true          # show the key-hints line at the bottom
 ```
 
 The SQLite cache (`~/.config/gooseneck/cache.db`) stores each artist's track list

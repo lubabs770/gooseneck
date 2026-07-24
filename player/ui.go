@@ -398,8 +398,6 @@ func (m model) View() string {
 		crumbs[i] = vis(l.title)
 	}
 	b.WriteString(m.st.title.Render(strings.Join(crumbs, " / ")))
-	b.WriteString("  ")
-	b.WriteString(m.st.dim.Render(fmt.Sprintf("[%s]", m.view)))
 	b.WriteString("\n")
 
 	if m.typing || m.filter != "" {
@@ -430,7 +428,7 @@ func (m model) View() string {
 	b.WriteString("\n")
 	if m.status != "" {
 		b.WriteString(m.st.loading.Render(m.status))
-	} else {
+	} else if m.cfg.ShowHelp == nil || *m.cfg.ShowHelp {
 		b.WriteString(m.st.help.Render(m.helpLine()))
 	}
 	return b.String()
