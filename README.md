@@ -5,6 +5,10 @@ streams any artist straight into `mpv` via `yt-dlp`.
 
 ![gooseneck-player demo](demo.gif)
 
+Real album art / artist pics in the grid on Kitty-graphics terminals (Ghostty, Kitty):
+
+![gooseneck-player grid with profile pics](screenshot.png)
+
 ## Install
 
 Detects your OS/arch and grabs the matching binary from the latest release:
@@ -58,7 +62,7 @@ theme        = "default"      # default | gruvbox | nord | mono
 view         = "grid"         # grid | list
 show_help    = true           # show the key-hints line (toggle live with ?)
 caret        = true           # show a ›caret on the selection
-thumbnails   = true           # artist profile pics in the grid (toggle live with i)
+thumbnails   = true           # artist profile pics in grid & list views (toggle with i)
 thumb_height = 0              # profile-pic height in rows; 0 = auto (square cards)
 ```
 

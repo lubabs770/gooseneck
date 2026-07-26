@@ -253,9 +253,70 @@ func (m model) thumbCmd(id, url string, w, h int, kitty bool) tea.Cmd {
 	}
 }
 
-// thumbsEnabled reports whether profile pics should render on the current screen.
+// thumbsEnabled reports whether profile pics should render on the current
+// screen. Both grid and list views show them; only the artists screen has
+// thumbnails in its data.
 func (m model) thumbsEnabled() bool {
-	return m.showThumbs && m.view == "grid" && m.cur().kind == artistsScreen
+	return m.showThumbs && m.cur().kind == artistsScreen
+}
+
+// listThumbRows is the profile-pic height (rows) for list view — smaller than
+// grid so rows stay compact.
+func (m model) listThumbRows() int {
+	if m.cfg.ThumbHeight > 0 {
+		h := m.cfg.ThumbHeight
+		if h < 3 {
+			h = 3
+		}
+		if h > 8 {
+			h = 8
+		}
+		return h
+	}
+	return 4
+}
+
+// thumbGeom returns the image cell size (width, rows) for the current view. List
+// thumbnails are square (width ≈ 2× rows, since cells are ~1:2).
+func (m model) thumbGeom() (w, rows int) {
+	if m.view == "list" {
+		rows = m.listThumbRows()
+		return rows * 2, rows
+	}
+	return m.cardInnerW(), m.thumbH()
+}
+
+// thumbWindow returns the [lo, hi) range of item indices whose thumbnails are
+// visible for the current view — shared by ensureThumbs and the renderers.
+func (m model) thumbWindow() (lo, hi int) {
+	l := m.cur()
+	bodyH := m.height - 5
+	if m.filter != "" || m.typing {
+		bodyH--
+	}
+	if bodyH < 1 {
+		bodyH = 1
+	}
+	if m.view == "list" {
+		rowH := m.thumbHCache
+		if rowH < 1 {
+			rowH = 1
+		}
+		fit := bodyH / rowH
+		if fit < 1 {
+			fit = 1
+		}
+		lo = windowStart(l.cursor, fit, len(l.vis))
+		return lo, lo + fit
+	}
+	cols, _, rows := m.gridDims()
+	perPage := cols * rows
+	page := 0
+	if perPage > 0 {
+		page = l.cursor / perPage
+	}
+	lo = page * perPage
+	return lo, lo + perPage
 }
 
 // cardHeight is the number of terminal rows one grid card occupies (label only,
@@ -321,34 +382,23 @@ func (m *model) ensureThumbs() tea.Cmd {
 	if !m.thumbsEnabled() || m.width == 0 {
 		return nil
 	}
-	cols, innerW, rows := m.gridDims()
-	if innerW != m.thumbW || m.thumbH() != m.thumbHeightCache() {
-		m.thumbW, m.thumbHCache = innerW, m.thumbH()
+	w, rows := m.thumbGeom()
+	if w != m.thumbW || rows != m.thumbHCache {
+		m.thumbW, m.thumbHCache = w, rows
 		m.thumbs = map[string]string{}
 		m.thumbLoading = map[string]bool{}
-		// New card geometry means new crops: drop prepared images and force
-		// re-transmit / re-placement under the same ids.
+		// New geometry means new crops: drop prepared images and force a
+		// re-transmit + placement (the fixed placement id replaces the old one).
 		m.thumbPNG = map[string][]byte{}
 		m.kittyXmit = map[uint32]bool{}
 		m.kittyPlaced = map[uint32]bool{}
 	}
 	l := m.cur()
-	perPage := cols * rows
-	page := 0
-	if perPage > 0 {
-		page = l.cursor / perPage
-	}
-	start := page * perPage
+	lo, hi := m.thumbWindow()
 	var cmds []tea.Cmd
-	for i := start; i < start+perPage && i < len(l.vis); i++ {
+	for i := lo; i < hi && i < len(l.vis); i++ {
 		it := l.items[l.vis[i]]
-		if it.thumb == "" {
-			continue
-		}
-		if m.thumbPrepared(it.id) {
-			continue
-		}
-		if m.thumbLoading[it.id] {
+		if it.thumb == "" || m.thumbPrepared(it.id) || m.thumbLoading[it.id] {
 			continue
 		}
 		if m.kitty {
@@ -358,7 +408,7 @@ func (m *model) ensureThumbs() tea.Cmd {
 			}
 		}
 		m.thumbLoading[it.id] = true
-		cmds = append(cmds, m.thumbCmd(it.id, it.thumb, innerW, m.thumbH(), m.kitty))
+		cmds = append(cmds, m.thumbCmd(it.id, it.thumb, w, rows, m.kitty))
 	}
 	if len(cmds) == 0 {
 		return nil
@@ -815,6 +865,9 @@ func (m model) caretPrefix(selected bool) string {
 }
 
 func (m model) renderList(h int) string {
+	if m.thumbsEnabled() {
+		return m.renderListThumbs(h)
+	}
 	l := m.cur()
 	start := windowStart(l.cursor, h, len(l.vis))
 	var lines []string
@@ -828,6 +881,43 @@ func (m model) renderList(h int) string {
 		}
 	}
 	return strings.Join(lines, "\n")
+}
+
+// renderListThumbs draws the list view with a small square profile pic on the
+// left of each row and the name centered beside it.
+func (m model) renderListThumbs(h int) string {
+	l := m.cur()
+	rowH, imgW := m.thumbHCache, m.thumbW
+	if rowH < 1 {
+		rowH = 1
+	}
+	fit := h / rowH
+	if fit < 1 {
+		fit = 1
+	}
+	start := windowStart(l.cursor, fit, len(l.vis))
+	mid := rowH / 2
+	var blocks []string
+	for i := start; i < len(l.vis) && i < start+fit; i++ {
+		it := l.items[l.vis[i]]
+		selected := i == l.cursor
+		name := truncate(vis(it.title), m.width-imgW-6)
+		nameLine := m.caretPrefix(selected) + name
+		if selected {
+			nameLine = m.st.rowSel.Render(nameLine)
+		} else {
+			nameLine = m.st.row.Render(nameLine)
+		}
+		lines := make([]string, rowH)
+		for k := range lines {
+			if k == mid {
+				lines[k] = nameLine
+			}
+		}
+		right := strings.Join(lines, "\n")
+		blocks = append(blocks, lipgloss.JoinHorizontal(lipgloss.Top, m.thumbBlock(it.id), "  ", right))
+	}
+	return strings.Join(blocks, "\n")
 }
 
 func (m model) renderGrid(h int) string {
@@ -864,7 +954,7 @@ func (m model) renderGrid(h int) string {
 			}
 			content := label
 			if thumbs {
-				content = m.thumbBlock(it.id, innerW) + "\n" + label
+				content = m.thumbBlock(it.id) + "\n" + label
 			}
 			if selected {
 				cells = append(cells, m.st.cardSel.Render(content))
@@ -879,20 +969,28 @@ func (m model) renderGrid(h int) string {
 	return strings.Join(out, "\n")
 }
 
-// thumbBlock returns the profile-pic art for an artist, or a blank placeholder
-// of the right size while it loads (keeps every card the same height).
-func (m model) thumbBlock(id string, w int) string {
+// thumbBlock returns the profile-pic art for an artist at the current geometry
+// (thumbW × thumbHCache), or a blank placeholder while it loads (keeps every
+// card/row the same size).
+func (m model) thumbBlock(id string) string {
+	w, rows := m.thumbW, m.thumbHCache
+	if w < 1 {
+		w = 1
+	}
+	if rows < 1 {
+		rows = 1
+	}
 	if m.kitty {
 		if png, ok := m.thumbPNG[id]; ok && png != nil {
 			if iid := m.kittyID[id]; iid != 0 {
-				return placeholderBlock(iid, w, m.thumbH())
+				return placeholderBlock(iid, w, rows)
 			}
 		}
 	} else if art, ok := m.thumbs[id]; ok && art != "" {
 		return art
 	}
 	blank := strings.Repeat(" ", w)
-	lines := make([]string, m.thumbH())
+	lines := make([]string, rows)
 	for i := range lines {
 		lines[i] = blank
 	}

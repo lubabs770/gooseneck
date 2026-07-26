@@ -5,6 +5,10 @@ straight into a media player via `yt-dlp`.
 
 ![demo](../demo.gif)
 
+Real profile pics in the grid on Kitty-graphics terminals (Ghostty, Kitty):
+
+![grid with profile pics](../screenshot.png)
+
 Demo recorded with [VHS](https://github.com/charmbracelet/vhs) — see
 [`demo.tape`](demo.tape). Regenerate with `vhs demo.tape` after building.
 
@@ -54,7 +58,7 @@ theme        = "default"     # default | gruvbox | nord | mono
 view         = "grid"        # grid | list
 show_help    = true          # show the key-hints line at startup (toggle live with ?)
 caret        = true          # show a ›caret on the selection in both grid and list
-thumbnails   = true          # render artist profile pics in the grid (toggle live with i)
+thumbnails   = true          # artist profile pics in grid & list views (toggle live with i)
 thumb_height = 0             # profile-pic height in rows; 0 = auto (square cards)
 ```
 

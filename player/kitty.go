@@ -68,9 +68,11 @@ func kittyTransmit(imgID uint32, png []byte) string {
 }
 
 // kittyPlacement creates the virtual (Unicode-placeholder) placement for imgID,
-// sized cols×rows cells. Idempotent per (id, geometry).
+// sized cols×rows cells. The fixed placement id (p=1) means re-creating it at a
+// new size replaces the old placement instead of stacking a second one, so a
+// geometry change needs no explicit cleanup.
 func kittyPlacement(imgID uint32, cols, rows int) string {
-	return fmt.Sprintf("\x1b_Ga=p,i=%d,U=1,c=%d,r=%d,q=2\x1b\\", imgID, cols, rows)
+	return fmt.Sprintf("\x1b_Ga=p,i=%d,p=1,U=1,c=%d,r=%d,q=2\x1b\\", imgID, cols, rows)
 }
 
 // kittyDeleteAll removes every transmitted image (used on exit).
