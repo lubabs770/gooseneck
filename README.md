@@ -82,5 +82,7 @@ and how profile pics render (real Kitty bitmaps vs. half-block fallback).
   silhouette) for artists without a `thumbnail` URL.
 - **Playback options** — shuffle, and auto-advance to the next track / album /
   artist when the queue finishes.
+- **Multiple catalog files** — support more than one `artists.json` (e.g. a
+  personal/side catalog alongside the main one), merged or switchable at runtime.
 
 See [`player/README.md`](player/README.md#roadmap) for details.

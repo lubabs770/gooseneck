@@ -113,3 +113,6 @@ Playback hands the watch URLs to the player; `mpv --no-video` streams audio only
   render blank; show a generated placeholder (initials / silhouette) instead.
 - **Playback options** — shuffle a queue, and auto-advance ("play on") to the
   next track / album / artist when the current queue finishes.
+- **Multiple catalog files** — `artists_json` takes a single path today; support
+  a list of catalogs (or a catalog directory) so a personal/side `artists.json`
+  can sit alongside the main one, merged into the grid or switchable at runtime.
