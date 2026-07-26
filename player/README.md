@@ -54,7 +54,13 @@ theme        = "default"     # default | gruvbox | nord | mono
 view         = "grid"        # grid | list
 show_help    = true          # show the key-hints line at startup (toggle live with ?)
 caret        = true          # show a ›caret on the selection in both grid and list
+thumbnails   = true          # render artist profile pics in the grid (toggle live with i)
+thumb_height = 5             # profile-pic height in rows (1–12)
 ```
+
+Profile pics render as truecolor half-block art, so they need a 24-bit-color
+terminal; elsewhere they degrade gracefully. Only the visible page is fetched
+(lazily, off the UI thread) and cached under `~/.config/gooseneck/thumbs/`.
 
 The SQLite cache (`~/.config/gooseneck/cache.db`) stores each artist's track list
 so re-opening an artist is instant. Delete the file to force a refresh.
@@ -70,6 +76,7 @@ so re-opening an artist is instant. Delete the file to force a refresh.
 | `/` | fuzzy filter (fzf-style); `esc` clears |
 | `v` | toggle grid / list |
 | `t` | cycle theme |
+| `i` | toggle artist profile pics (starts from `thumbnails`) |
 | `?` | toggle the key-hints line (starts from `show_help`) |
 | `g` / `G` | top / bottom |
 | `ctrl-d` / `ctrl-u` | half-page down / up |
@@ -86,8 +93,8 @@ Playback hands the watch URLs to the player; `mpv --no-video` streams audio only
 
 ## Roadmap
 
-- **Artist profile pics** — each artist has a `thumbnail` URL in the catalog;
-  render it in the grid via a terminal image protocol (kitty / sixel / iTerm2),
-  falling back to the text card where unsupported.
 - **Faster album indexing** — the per-track full extraction is the bottleneck;
   explore batching or a lighter metadata source.
+- **`logs.json` play history** — record what gets played and how often. End game:
+  surface the most-listened artists so a background job can pre-index / refresh
+  their catalogs on a schedule, keeping hot artists warm in the cache.
