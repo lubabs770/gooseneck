@@ -73,8 +73,9 @@ and how profile pics render (real Kitty bitmaps vs. half-block fallback).
 
 - **Faster album indexing** — first-time album grouping does a full `yt-dlp`
   extraction per track; explore batching or a lighter metadata source.
-- **`logs.json` play history** — track play frequency to find the most-listened
-  artists, so a background job can pre-index / refresh their catalogs on a
-  schedule and keep hot artists warm in the cache.
+- **Background pre-indexing** — play history is logged to `logs.json`
+  (artist / album / track / time); the most-listened artists are ranked. Still
+  TODO: a background job that uses that ranking to pre-index / refresh hot
+  artists' catalogs on a schedule.
 
 See [`player/README.md`](player/README.md#roadmap) for details.

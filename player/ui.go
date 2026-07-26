@@ -556,6 +556,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.status = "play error: " + err.Error()
 			} else {
 				m.status = fmt.Sprintf("▶ %s (%d tracks)", msg.title, len(ids))
+				logPlay(playEvent{ArtistID: msg.playlistID, Artist: msg.title, Count: len(ids)})
 			}
 			return m, nil
 		}
@@ -709,10 +710,13 @@ func (m model) drill() (tea.Model, tea.Cmd) {
 	case albumsScreen:
 		return m.openAlbum(it)
 	case tracksScreen:
+		lv := m.cur()
 		if err := play(*m.cfg, []string{it.id}); err != nil {
 			m.status = "play error: " + err.Error()
 		} else {
 			m.status = "▶ " + it.title
+			logPlay(playEvent{ArtistID: lv.artistID, Artist: lv.artistName,
+				Album: lv.title, Track: it.title, VideoID: it.id, Count: 1})
 		}
 	}
 	return m, nil
@@ -726,7 +730,9 @@ func (m model) openAlbum(it item) (tea.Model, tea.Cmd) {
 		m.status = "no cached tracks for " + it.title
 		return m, nil
 	}
-	lv := level{kind: tracksScreen, title: it.title, playlistID: it.id}
+	cur := m.cur()
+	lv := level{kind: tracksScreen, title: it.title, playlistID: it.id,
+		artistID: cur.artistID, artistName: cur.artistName}
 	for _, t := range tr {
 		lv.items = append(lv.items, item{title: t.Title, subtitle: t.VideoID, id: t.VideoID})
 	}
@@ -739,7 +745,8 @@ func (m model) playCurrent() (tea.Model, tea.Cmd) {
 	if !ok {
 		return m, nil
 	}
-	switch m.cur().kind {
+	lv := m.cur()
+	switch lv.kind {
 	case albumsScreen:
 		tr, _ := m.cache.Tracks(it.id)
 		if len(tr) == 0 {
@@ -754,6 +761,8 @@ func (m model) playCurrent() (tea.Model, tea.Cmd) {
 			m.status = "play error: " + err.Error()
 		} else {
 			m.status = fmt.Sprintf("▶ %s (%d)", it.title, len(ids))
+			logPlay(playEvent{ArtistID: lv.artistID, Artist: lv.artistName,
+				Album: it.title, Count: len(ids)})
 		}
 		return m, nil
 	case tracksScreen:
@@ -761,6 +770,8 @@ func (m model) playCurrent() (tea.Model, tea.Cmd) {
 			m.status = "play error: " + err.Error()
 		} else {
 			m.status = "▶ " + it.title
+			logPlay(playEvent{ArtistID: lv.artistID, Artist: lv.artistName,
+				Album: lv.title, Track: it.title, VideoID: it.id, Count: 1})
 		}
 	case artistsScreen:
 		m.loading = true

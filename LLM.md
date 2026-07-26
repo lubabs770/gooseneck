@@ -26,6 +26,7 @@ current when architecture changes.
 | `cache.go` | SQLite album/track cache (`~/.config/gooseneck/cache.db`), pure-Go driver. |
 | `ytdlp.go` | `yt-dlp` calls: flat listing, full catalog extraction, album grouping, streaming progress. |
 | `play.go` | Spawns the media player with watch URLs, detached. |
+| `log.go` | Play-history logging to `logs.json` (`logPlay`); `topArtists` ranks by frequency. |
 | `theme.go` | Themes + derived lipgloss styles. |
 | `display.go` | `vis()` — BiDi visual reordering so RTL (Hebrew) renders correctly in terminals. |
 | `thumbs.go` | Thumbnail fetch, square-crop URL rewrite, center-crop, half-block render, PNG encode. |
@@ -40,6 +41,9 @@ current when architecture changes.
    by each track's `album` field (singles collapse into one bucket), caches the
    result in SQLite. First extraction is slow; re-opens are instant.
 3. Screens are a stack of `level`s: artists → albums → tracks. `p` plays.
+4. Every play appends an event (artist / album / track / time) to
+   `~/.config/gooseneck/logs.json` via `logPlay`; `topArtists` tallies play
+   frequency for future background pre-indexing.
 
 ### Profile pics (thumbnails)
 

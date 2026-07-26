@@ -103,6 +103,7 @@ Playback hands the watch URLs to the player; `mpv --no-video` streams audio only
 
 - **Faster album indexing** — the per-track full extraction is the bottleneck;
   explore batching or a lighter metadata source.
-- **`logs.json` play history** — record what gets played and how often. End game:
-  surface the most-listened artists so a background job can pre-index / refresh
-  their catalogs on a schedule, keeping hot artists warm in the cache.
+- **Background pre-indexing** — every play is now logged to
+  `~/.config/gooseneck/logs.json` (artist / album / track / time) and `topArtists`
+  ranks the most-listened. Still TODO: a background job that uses that ranking to
+  pre-index / refresh hot artists' catalogs on a schedule, keeping them warm.
