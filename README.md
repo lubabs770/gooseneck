@@ -28,7 +28,8 @@ in `~/.config/gooseneck/` — no `artists.json` needed. Just run `goose`.
   ([`fetch-artists.yml`](.github/workflows/fetch-artists.yml)) that pulls from the
   skmusic worker.
 - **`player/`** — a Bubble Tea TUI: grid/list views with artist profile pics
-  (truecolor half-block art), vim motions, fzf-style fuzzy filter, themes;
+  (real bitmap images on Kitty/Ghostty via the Kitty graphics protocol, truecolor
+  half-block fallback elsewhere), vim motions, fzf-style fuzzy filter, themes;
   drills artist → albums → tracks and plays audio-only. See
   [`player/README.md`](player/README.md).
 - **CI** — [`build-player.yml`](.github/workflows/build-player.yml) cross-compiles

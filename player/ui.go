@@ -55,6 +55,14 @@ type model struct {
 	thumbW       int               // cell width the cached art was rendered at
 	thumbHCache  int               // cell height (rows) the cached art was rendered at
 
+	// Kitty graphics (real bitmaps) — used when the terminal supports it
+	kitty       bool              // terminal speaks the Kitty graphics protocol
+	thumbPNG    map[string][]byte // artist id -> cropped PNG (nil = tried, none)
+	kittyID     map[string]uint32 // artist id -> stable Kitty image id
+	kittySeq    uint32            // last assigned image id
+	kittyXmit   map[uint32]bool   // image id -> data transmitted to the terminal
+	kittyPlaced map[uint32]bool   // image id -> virtual placement created (this geometry)
+
 	stack   []level
 	typing  bool
 	filter  string
@@ -85,6 +93,11 @@ func newModel(cfg Config, cache *Cache, artists []Artist) model {
 		stack:        []level{root},
 		thumbs:       map[string]string{},
 		thumbLoading: map[string]bool{},
+		kitty:        kittyCapable(),
+		thumbPNG:     map[string][]byte{},
+		kittyID:      map[string]uint32{},
+		kittyXmit:    map[uint32]bool{},
+		kittyPlaced:  map[uint32]bool{},
 	}
 	m.recompute()
 	return m
@@ -211,23 +224,32 @@ func (m *model) loadTracksCmd(pl item, playNow bool) tea.Cmd {
 
 // ---- profile pics (thumbnails) --------------------------------------------
 
-// thumbReady delivers a rendered thumbnail (or "" on failure) for an artist,
-// tagged with the geometry it was rendered at so stale results can be dropped.
+// thumbReady delivers a prepared thumbnail for an artist, tagged with the
+// geometry it was prepared at so stale results can be dropped. For Kitty
+// terminals it carries the cropped PNG bytes; otherwise the half-block art.
 type thumbReady struct {
 	id   string
-	art  string
+	art  string // half-block render (non-Kitty)
+	png  []byte // cropped PNG (Kitty); nil on failure
 	w, h int
 }
 
-// thumbCmd downloads + renders one artist thumbnail off the UI goroutine.
-func (m model) thumbCmd(id, url string, w, h int) tea.Cmd {
+// thumbCmd downloads + prepares one artist thumbnail off the UI goroutine.
+func (m model) thumbCmd(id, url string, w, h int, kitty bool) tea.Cmd {
 	dest := thumbCachePath(id)
 	return func() tea.Msg {
 		img, err := loadThumbImage(url, dest)
 		if err != nil {
-			return thumbReady{id, "", w, h} // mark tried; render a blank card
+			return thumbReady{id: id, w: w, h: h} // mark tried; blank card
 		}
-		return thumbReady{id, renderThumb(img, w, h), w, h}
+		if kitty {
+			png, perr := croppedPNG(img, w, h)
+			if perr != nil {
+				return thumbReady{id: id, w: w, h: h}
+			}
+			return thumbReady{id: id, png: png, w: w, h: h}
+		}
+		return thumbReady{id: id, art: renderThumb(img, w, h), w: w, h: h}
 	}
 }
 
@@ -304,6 +326,11 @@ func (m *model) ensureThumbs() tea.Cmd {
 		m.thumbW, m.thumbHCache = innerW, m.thumbH()
 		m.thumbs = map[string]string{}
 		m.thumbLoading = map[string]bool{}
+		// New card geometry means new crops: drop prepared images and force
+		// re-transmit / re-placement under the same ids.
+		m.thumbPNG = map[string][]byte{}
+		m.kittyXmit = map[uint32]bool{}
+		m.kittyPlaced = map[uint32]bool{}
 	}
 	l := m.cur()
 	perPage := cols * rows
@@ -318,14 +345,20 @@ func (m *model) ensureThumbs() tea.Cmd {
 		if it.thumb == "" {
 			continue
 		}
-		if _, done := m.thumbs[it.id]; done {
+		if m.thumbPrepared(it.id) {
 			continue
 		}
 		if m.thumbLoading[it.id] {
 			continue
 		}
+		if m.kitty {
+			if _, ok := m.kittyID[it.id]; !ok {
+				m.kittySeq++
+				m.kittyID[it.id] = m.kittySeq
+			}
+		}
 		m.thumbLoading[it.id] = true
-		cmds = append(cmds, m.thumbCmd(it.id, it.thumb, innerW, m.thumbH()))
+		cmds = append(cmds, m.thumbCmd(it.id, it.thumb, innerW, m.thumbH(), m.kitty))
 	}
 	if len(cmds) == 0 {
 		return nil
@@ -335,6 +368,46 @@ func (m *model) ensureThumbs() tea.Cmd {
 
 // thumbHeightCache mirrors thumbH but from the cached geometry field.
 func (m model) thumbHeightCache() int { return m.thumbHCache }
+
+// thumbPrepared reports whether an artist's thumbnail has been fetched+prepared
+// (successfully or not) for the current geometry.
+func (m model) thumbPrepared(id string) bool {
+	if m.kitty {
+		_, ok := m.thumbPNG[id]
+		return ok
+	}
+	_, ok := m.thumbs[id]
+	return ok
+}
+
+// kittyStream returns the zero-width escape sequences that upload any newly
+// prepared images and (re)create their virtual placements. It is emitted once
+// at the top of the frame, before the placeholder cells that reference the
+// images. Only called when profile pics are actually on screen.
+func (m *model) kittyStream() string {
+	if !m.kitty || m.thumbW < 1 || m.thumbHCache < 1 {
+		return ""
+	}
+	var sb strings.Builder
+	for id, png := range m.thumbPNG {
+		if png == nil {
+			continue
+		}
+		iid := m.kittyID[id]
+		if iid == 0 {
+			continue
+		}
+		if !m.kittyXmit[iid] {
+			sb.WriteString(kittyTransmit(iid, png))
+			m.kittyXmit[iid] = true
+		}
+		if !m.kittyPlaced[iid] {
+			sb.WriteString(kittyPlacement(iid, m.thumbW, m.thumbHCache))
+			m.kittyPlaced[iid] = true
+		}
+	}
+	return sb.String()
+}
 
 // ---- update ---------------------------------------------------------------
 
@@ -379,7 +452,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case thumbReady:
 		delete(m.thumbLoading, msg.id)
 		if msg.w == m.thumbW && msg.h == m.thumbHCache { // drop stale geometry
-			m.thumbs[msg.id] = msg.art
+			if m.kitty {
+				m.thumbPNG[msg.id] = msg.png // nil marks a failed fetch
+			} else {
+				m.thumbs[msg.id] = msg.art
+			}
 		}
 		return m, nil
 
@@ -660,6 +737,12 @@ func (m model) View() string {
 	}
 	var b strings.Builder
 
+	// Upload any newly prepared Kitty images (zero-width) before the frame that
+	// references them via placeholder cells.
+	if m.thumbsEnabled() {
+		b.WriteString((&m).kittyStream())
+	}
+
 	crumbs := make([]string, len(m.stack))
 	for i, l := range m.stack {
 		crumbs[i] = vis(l.title)
@@ -799,7 +882,13 @@ func (m model) renderGrid(h int) string {
 // thumbBlock returns the profile-pic art for an artist, or a blank placeholder
 // of the right size while it loads (keeps every card the same height).
 func (m model) thumbBlock(id string, w int) string {
-	if art, ok := m.thumbs[id]; ok && art != "" {
+	if m.kitty {
+		if png, ok := m.thumbPNG[id]; ok && png != nil {
+			if iid := m.kittyID[id]; iid != 0 {
+				return placeholderBlock(iid, w, m.thumbH())
+			}
+		}
+	} else if art, ok := m.thumbs[id]; ok && art != "" {
 		return art
 	}
 	blank := strings.Repeat(" ", w)

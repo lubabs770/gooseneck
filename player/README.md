@@ -58,12 +58,13 @@ thumbnails   = true          # render artist profile pics in the grid (toggle li
 thumb_height = 0             # profile-pic height in rows; 0 = auto (square cards)
 ```
 
-Profile pics render as truecolor half-block art, so they need a 24-bit-color
-terminal; elsewhere they degrade gracefully. Thumbnails come from the catalog's
-`thumbnail` URL, rewritten to a square center-crop (googleusercontent `=s…-c`)
-so both square avatars and wide channel banners fill a card cleanly. Only the
-visible page is fetched (lazily, off the UI thread) and cached under
-`~/.config/gooseneck/thumbs/`.
+On terminals that speak the **Kitty graphics protocol** (Kitty, Ghostty) profile
+pics render as real bitmap images via Unicode placeholders. Elsewhere they fall
+back to truecolor half-block art (needs a 24-bit-color terminal). Thumbnails come
+from the catalog's `thumbnail` URL, rewritten to a square center-crop
+(googleusercontent `=s…-c`) so both square avatars and wide channel banners fill
+a card cleanly. Only the visible page is fetched (lazily, off the UI thread) and
+cached under `~/.config/gooseneck/thumbs/`.
 
 The SQLite cache (`~/.config/gooseneck/cache.db`) stores each artist's track list
 so re-opening an artist is instant. Delete the file to force a refresh.

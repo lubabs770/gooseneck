@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"image"
-	_ "image/gif"  // register decoders
-	_ "image/jpeg" // YouTube thumbnails are usually JPEG
-	_ "image/png"
+	"image/draw"
+	_ "image/gif" // register decoders
+	_ "image/jpeg"
+	"image/png"
 	"io"
 	"net/http"
 	"os"
@@ -16,25 +18,23 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// renderThumb resizes img (nearest-neighbor, no cgo deps) to cols×(rows*2)
-// pixels and packs it into cols×rows terminal cells using the upper-half-block
-// glyph: foreground = top pixel, background = bottom pixel. The result is a
-// plain colored string that drops straight into a lipgloss card. The source is
-// center-cropped to the card's aspect ratio first, so images fill the card
-// without stretching.
-func renderThumb(img image.Image, cols, rows int) string {
-	if cols < 1 || rows < 1 {
-		return ""
-	}
+// subImager is implemented by the stdlib image types (YCbCr, RGBA, ...); it lets
+// us crop without copying.
+type subImager interface {
+	SubImage(r image.Rectangle) image.Image
+}
+
+// cropToAspect returns img center-cropped to the cell box's pixel aspect
+// (cols × rows*2), so it fills a card without stretching.
+func cropToAspect(img image.Image, cols, rows int) image.Image {
 	pw, ph := cols, rows*2
 	b := img.Bounds()
 	sw, sh := b.Dx(), b.Dy()
-	if sw < 1 || sh < 1 {
-		return ""
+	if sw < 1 || sh < 1 || pw < 1 || ph < 1 {
+		return img
 	}
-	// center-crop the source to the target cell aspect to avoid stretching.
 	cx0, cy0, cw, ch := b.Min.X, b.Min.Y, sw, sh
-	if sw*ph > sh*pw { // source wider than target: crop width
+	if sw*ph > sh*pw { // wider than target: crop width
 		cw = sh * pw / ph
 		cx0 = b.Min.X + (sw-cw)/2
 	} else { // taller than target: crop height
@@ -47,9 +47,45 @@ func renderThumb(img image.Image, cols, rows int) string {
 	if ch < 1 {
 		ch = 1
 	}
+	r := image.Rect(cx0, cy0, cx0+cw, cy0+ch)
+	if si, ok := img.(subImager); ok {
+		return si.SubImage(r)
+	}
+	dst := image.NewRGBA(image.Rect(0, 0, r.Dx(), r.Dy()))
+	draw.Draw(dst, dst.Bounds(), img, r.Min, draw.Src)
+	return dst
+}
+
+// croppedPNG center-crops img to the card aspect and PNG-encodes it, ready to
+// transmit via the Kitty graphics protocol.
+func croppedPNG(img image.Image, cols, rows int) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, cropToAspect(img, cols, rows)); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// renderThumb resizes img (nearest-neighbor, no cgo deps) to cols×(rows*2)
+// pixels and packs it into cols×rows terminal cells using the upper-half-block
+// glyph: foreground = top pixel, background = bottom pixel. The result is a
+// plain colored string that drops straight into a lipgloss card. The source is
+// center-cropped to the card's aspect ratio first, so images fill the card
+// without stretching.
+func renderThumb(img image.Image, cols, rows int) string {
+	if cols < 1 || rows < 1 {
+		return ""
+	}
+	img = cropToAspect(img, cols, rows)
+	pw, ph := cols, rows*2
+	b := img.Bounds()
+	sw, sh := b.Dx(), b.Dy()
+	if sw < 1 || sh < 1 {
+		return ""
+	}
 	sample := func(px, py int) (uint8, uint8, uint8) {
-		sx := cx0 + px*cw/pw
-		sy := cy0 + py*ch/ph
+		sx := b.Min.X + px*sw/pw
+		sy := b.Min.Y + py*sh/ph
 		r, g, bl, _ := img.At(sx, sy).RGBA()
 		return uint8(r >> 8), uint8(g >> 8), uint8(bl >> 8)
 	}

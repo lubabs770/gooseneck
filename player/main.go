@@ -30,4 +30,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	if kittyCapable() { // clear any transmitted images on the way out
+		fmt.Print(kittyDeleteAll())
+	}
 }
