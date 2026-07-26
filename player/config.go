@@ -20,7 +20,7 @@ type Config struct {
 	ShowHelp    *bool    `toml:"show_help"`    // show the key hints line at startup (default true)
 	Caret       *bool    `toml:"caret"`        // show a ›caret on the selection, any view (default true)
 	Thumbnails  *bool    `toml:"thumbnails"`   // render artist profile pics in the grid (default true)
-	ThumbHeight int      `toml:"thumb_height"` // profile-pic height in terminal rows (default 5)
+	ThumbHeight int      `toml:"thumb_height"` // profile-pic height in rows; 0 = auto (square)
 }
 
 func boolPtr(b bool) *bool { return &b }
@@ -48,7 +48,7 @@ func defaultConfig() Config {
 		ShowHelp:    boolPtr(true),
 		Caret:       boolPtr(true),
 		Thumbnails:  boolPtr(true),
-		ThumbHeight: 5,
+		ThumbHeight: 0, // auto: square cards
 	}
 }
 
@@ -82,11 +82,11 @@ func loadConfig() (Config, error) {
 	if cfg.Thumbnails == nil {
 		cfg.Thumbnails = boolPtr(true)
 	}
-	if cfg.ThumbHeight <= 0 {
-		cfg.ThumbHeight = 5
+	if cfg.ThumbHeight < 0 {
+		cfg.ThumbHeight = 0 // 0 = auto (square)
 	}
-	if cfg.ThumbHeight > 12 {
-		cfg.ThumbHeight = 12
+	if cfg.ThumbHeight > 14 {
+		cfg.ThumbHeight = 14
 	}
 	return applyEnv(cfg), nil
 }
@@ -97,9 +97,10 @@ func artistsCachePath() string {
 }
 
 // thumbCachePath is where a downloaded artist thumbnail is cached on disk. The
-// artist id is a YouTube channel id (safe as a filename).
+// artist id is a YouTube channel id (safe as a filename). The ".sq" marks the
+// square-cropped variant, so caches from older (banner) versions are ignored.
 func thumbCachePath(id string) string {
-	return filepath.Join(configDir(), "thumbs", id+".img")
+	return filepath.Join(configDir(), "thumbs", id+".sq.img")
 }
 
 // applyEnv lets $APP override the configured player at runtime.

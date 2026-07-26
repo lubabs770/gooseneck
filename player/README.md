@@ -55,12 +55,15 @@ view         = "grid"        # grid | list
 show_help    = true          # show the key-hints line at startup (toggle live with ?)
 caret        = true          # show a ›caret on the selection in both grid and list
 thumbnails   = true          # render artist profile pics in the grid (toggle live with i)
-thumb_height = 5             # profile-pic height in rows (1–12)
+thumb_height = 0             # profile-pic height in rows; 0 = auto (square cards)
 ```
 
 Profile pics render as truecolor half-block art, so they need a 24-bit-color
-terminal; elsewhere they degrade gracefully. Only the visible page is fetched
-(lazily, off the UI thread) and cached under `~/.config/gooseneck/thumbs/`.
+terminal; elsewhere they degrade gracefully. Thumbnails come from the catalog's
+`thumbnail` URL, rewritten to a square center-crop (googleusercontent `=s…-c`)
+so both square avatars and wide channel banners fill a card cleanly. Only the
+visible page is fetched (lazily, off the UI thread) and cached under
+`~/.config/gooseneck/thumbs/`.
 
 The SQLite cache (`~/.config/gooseneck/cache.db`) stores each artist's track list
 so re-opening an artist is instant. Delete the file to force a refresh.

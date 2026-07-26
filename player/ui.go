@@ -245,11 +245,34 @@ func (m model) cardHeight() int {
 	return 1
 }
 
-// thumbH is the configured profile-pic height in rows.
+// cardInnerW is the usable text/image width inside one grid card. It depends
+// only on the window width (not card height), so thumbH can call it safely.
+func (m model) cardInnerW() int {
+	cols := m.cols()
+	cardW := (m.width / cols) - 2
+	if cardW < 8 {
+		cardW = 8
+	}
+	return cardW - 2
+}
+
+// thumbH is the profile-pic height in rows. A configured thumb_height wins;
+// otherwise it is auto-derived so the card is roughly square on screen (each
+// terminal cell is about twice as tall as wide, so square ≈ innerWidth/2 rows).
 func (m model) thumbH() int {
-	h := m.cfg.ThumbHeight
-	if h < 1 {
-		h = 5
+	if m.cfg.ThumbHeight > 0 {
+		h := m.cfg.ThumbHeight
+		if h > 14 {
+			h = 14
+		}
+		return h
+	}
+	h := m.cardInnerW() / 2
+	if h < 3 {
+		h = 3
+	}
+	if h > 10 {
+		h = 10
 	}
 	return h
 }
@@ -258,11 +281,7 @@ func (m model) thumbH() int {
 // the current window — shared by renderGrid and ensureThumbs so they agree.
 func (m model) gridDims() (cols, innerW, rows int) {
 	cols = m.cols()
-	cardW := (m.width / cols) - 2
-	if cardW < 8 {
-		cardW = 8
-	}
-	innerW = cardW - 2
+	innerW = m.cardInnerW()
 	bodyH := m.height - 5
 	if m.filter != "" || m.typing {
 		bodyH--
