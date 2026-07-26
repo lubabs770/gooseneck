@@ -44,6 +44,27 @@ cd player && go build -o gooseneck-player .
 
 Requires Go 1.23+.
 
+## Config
+
+Written to `~/.config/gooseneck/config.toml` on first run (edit and restart):
+
+```toml
+bin_dir      = ""             # directory holding yt-dlp; "" = use $PATH
+player       = "mpv"          # media player; $APP env var overrides this
+player_args  = ["--no-video"] # audio-only by default
+artists_json = ""             # explicit catalog path; "" = auto-detect/download
+artists_url  = "https://skmusic.shalomkarr.workers.dev/data/artists.json"
+theme        = "default"      # default | gruvbox | nord | mono
+view         = "grid"         # grid | list
+show_help    = true           # show the key-hints line (toggle live with ?)
+caret        = true           # show a ›caret on the selection
+thumbnails   = true           # artist profile pics in the grid (toggle live with i)
+thumb_height = 0              # profile-pic height in rows; 0 = auto (square cards)
+```
+
+See [`player/README.md`](player/README.md#config) for field details, keybindings,
+and how profile pics render (real Kitty bitmaps vs. half-block fallback).
+
 ## Roadmap
 
 - **Faster album indexing** — first-time album grouping does a full `yt-dlp`
