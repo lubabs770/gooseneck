@@ -27,8 +27,9 @@ in `~/.config/gooseneck/` — no `artists.json` needed. Just run `goose`.
 - **`artists.json`** — the catalog, refreshed daily by a GitHub Action
   ([`fetch-artists.yml`](.github/workflows/fetch-artists.yml)) that pulls from the
   skmusic worker.
-- **`player/`** — a Bubble Tea TUI: grid/list views, vim motions, fzf-style
-  fuzzy filter, themes; drills artist → tracks and plays audio-only. See
+- **`player/`** — a Bubble Tea TUI: grid/list views with artist profile pics
+  (truecolor half-block art), vim motions, fzf-style fuzzy filter, themes;
+  drills artist → albums → tracks and plays audio-only. See
   [`player/README.md`](player/README.md).
 - **CI** — [`build-player.yml`](.github/workflows/build-player.yml) cross-compiles
   the player for linux/macOS/windows (amd64+arm64) on every change, and publishes
@@ -44,9 +45,10 @@ Requires Go 1.23+.
 
 ## Roadmap
 
-- **Artist profile pics** — render each artist's `thumbnail` in the grid via a
-  terminal image protocol (kitty / sixel / iTerm2), text-card fallback.
 - **Faster album indexing** — first-time album grouping does a full `yt-dlp`
   extraction per track; explore batching or a lighter metadata source.
+- **`logs.json` play history** — track play frequency to find the most-listened
+  artists, so a background job can pre-index / refresh their catalogs on a
+  schedule and keep hot artists warm in the cache.
 
 See [`player/README.md`](player/README.md#roadmap) for details.

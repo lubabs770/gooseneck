@@ -21,6 +21,7 @@ type item struct {
 	title    string
 	subtitle string
 	id       string // artist id | playlist id | video id
+	thumb    string // artist thumbnail URL (artists screen only)
 }
 
 // level is one screen on the navigation stack.
@@ -39,13 +40,20 @@ type model struct {
 	cfg   *Config
 	cache *Cache
 
-	themeName string
-	st        styles
-	view      string // "grid" | "list"
-	showHelp  bool   // runtime toggle, seeded from cfg.ShowHelp
-	caret     bool   // show a ›caret on the selection, seeded from cfg.Caret
+	themeName  string
+	st         styles
+	view       string // "grid" | "list"
+	showHelp   bool   // runtime toggle, seeded from cfg.ShowHelp
+	caret      bool   // show a ›caret on the selection, seeded from cfg.Caret
+	showThumbs bool   // render profile pics, seeded from cfg.Thumbnails
 
 	width, height int
+
+	// profile-pic (thumbnail) state, keyed by artist id for the current geometry
+	thumbs       map[string]string // id -> rendered half-block art ("" = tried, none)
+	thumbLoading map[string]bool   // id -> fetch in flight
+	thumbW       int               // cell width the cached art was rendered at
+	thumbHCache  int               // cell height (rows) the cached art was rendered at
 
 	stack   []level
 	typing  bool
@@ -63,17 +71,20 @@ type model struct {
 func newModel(cfg Config, cache *Cache, artists []Artist) model {
 	root := level{kind: artistsScreen, title: "Artists"}
 	for _, a := range artists {
-		root.items = append(root.items, item{title: a.Name, subtitle: a.ID, id: a.ID})
+		root.items = append(root.items, item{title: a.Name, subtitle: a.ID, id: a.ID, thumb: a.Thumbnail})
 	}
 	m := model{
-		cfg:       &cfg,
-		cache:     cache,
-		themeName: cfg.Theme,
-		st:        buildStyles(getTheme(cfg.Theme)),
-		view:      normView(cfg.View),
-		showHelp:  cfg.ShowHelp == nil || *cfg.ShowHelp,
-		caret:     cfg.Caret == nil || *cfg.Caret,
-		stack:     []level{root},
+		cfg:          &cfg,
+		cache:        cache,
+		themeName:    cfg.Theme,
+		st:           buildStyles(getTheme(cfg.Theme)),
+		view:         normView(cfg.View),
+		showHelp:     cfg.ShowHelp == nil || *cfg.ShowHelp,
+		caret:        cfg.Caret == nil || *cfg.Caret,
+		showThumbs:   cfg.Thumbnails == nil || *cfg.Thumbnails,
+		stack:        []level{root},
+		thumbs:       map[string]string{},
+		thumbLoading: map[string]bool{},
 	}
 	m.recompute()
 	return m
@@ -198,6 +209,114 @@ func (m *model) loadTracksCmd(pl item, playNow bool) tea.Cmd {
 	}
 }
 
+// ---- profile pics (thumbnails) --------------------------------------------
+
+// thumbReady delivers a rendered thumbnail (or "" on failure) for an artist,
+// tagged with the geometry it was rendered at so stale results can be dropped.
+type thumbReady struct {
+	id   string
+	art  string
+	w, h int
+}
+
+// thumbCmd downloads + renders one artist thumbnail off the UI goroutine.
+func (m model) thumbCmd(id, url string, w, h int) tea.Cmd {
+	dest := thumbCachePath(id)
+	return func() tea.Msg {
+		img, err := loadThumbImage(url, dest)
+		if err != nil {
+			return thumbReady{id, "", w, h} // mark tried; render a blank card
+		}
+		return thumbReady{id, renderThumb(img, w, h), w, h}
+	}
+}
+
+// thumbsEnabled reports whether profile pics should render on the current screen.
+func (m model) thumbsEnabled() bool {
+	return m.showThumbs && m.view == "grid" && m.cur().kind == artistsScreen
+}
+
+// cardHeight is the number of terminal rows one grid card occupies (label only,
+// or the thumbnail block plus its label).
+func (m model) cardHeight() int {
+	if m.thumbsEnabled() {
+		return m.thumbH() + 1
+	}
+	return 1
+}
+
+// thumbH is the configured profile-pic height in rows.
+func (m model) thumbH() int {
+	h := m.cfg.ThumbHeight
+	if h < 1 {
+		h = 5
+	}
+	return h
+}
+
+// gridDims returns the column count, per-card inner width, and rows-per-page for
+// the current window — shared by renderGrid and ensureThumbs so they agree.
+func (m model) gridDims() (cols, innerW, rows int) {
+	cols = m.cols()
+	cardW := (m.width / cols) - 2
+	if cardW < 8 {
+		cardW = 8
+	}
+	innerW = cardW - 2
+	bodyH := m.height - 5
+	if m.filter != "" || m.typing {
+		bodyH--
+	}
+	rows = bodyH / m.cardHeight()
+	if rows < 1 {
+		rows = 1
+	}
+	return
+}
+
+// ensureThumbs kicks off fetches for the profile pics on the visible page,
+// invalidating cached art when the card geometry changed. Returns a batched cmd.
+func (m *model) ensureThumbs() tea.Cmd {
+	if !m.thumbsEnabled() || m.width == 0 {
+		return nil
+	}
+	cols, innerW, rows := m.gridDims()
+	if innerW != m.thumbW || m.thumbH() != m.thumbHeightCache() {
+		m.thumbW, m.thumbHCache = innerW, m.thumbH()
+		m.thumbs = map[string]string{}
+		m.thumbLoading = map[string]bool{}
+	}
+	l := m.cur()
+	perPage := cols * rows
+	page := 0
+	if perPage > 0 {
+		page = l.cursor / perPage
+	}
+	start := page * perPage
+	var cmds []tea.Cmd
+	for i := start; i < start+perPage && i < len(l.vis); i++ {
+		it := l.items[l.vis[i]]
+		if it.thumb == "" {
+			continue
+		}
+		if _, done := m.thumbs[it.id]; done {
+			continue
+		}
+		if m.thumbLoading[it.id] {
+			continue
+		}
+		m.thumbLoading[it.id] = true
+		cmds = append(cmds, m.thumbCmd(it.id, it.thumb, innerW, m.thumbH()))
+	}
+	if len(cmds) == 0 {
+		return nil
+	}
+	return tea.Batch(cmds...)
+}
+
+// thumbHeightCache mirrors thumbH but from the cached geometry field.
+func (m model) thumbHeightCache() int { return m.thumbHCache }
+
 // ---- update ---------------------------------------------------------------
 
 func (m *model) recompute() {
@@ -236,6 +355,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		return m, m.ensureThumbs()
+
+	case thumbReady:
+		delete(m.thumbLoading, msg.id)
+		if msg.w == m.thumbW && msg.h == m.thumbHCache { // drop stale geometry
+			m.thumbs[msg.id] = msg.art
+		}
 		return m, nil
 
 	case indexProgress:
@@ -295,10 +421,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		var mm tea.Model
+		var cmd tea.Cmd
 		if m.typing {
-			return m.updateTyping(msg)
+			mm, cmd = m.updateTyping(msg)
+		} else {
+			mm, cmd = m.updateNormal(msg)
 		}
-		return m.updateNormal(msg)
+		// After any key, fetch profile pics for the (possibly new) visible page.
+		if m2, ok := mm.(model); ok {
+			if tc := (&m2).ensureThumbs(); tc != nil {
+				cmd = tea.Batch(cmd, tc)
+			}
+			return m2, cmd
+		}
+		return mm, cmd
 	}
 	return m, nil
 }
@@ -384,6 +521,13 @@ func (m model) updateNormal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.themeName = nextTheme(m.themeName)
 		m.st = buildStyles(getTheme(m.themeName))
 		m.status = "theme: " + m.themeName
+	case "i":
+		m.showThumbs = !m.showThumbs
+		if m.showThumbs {
+			m.status = "profile pics: on"
+		} else {
+			m.status = "profile pics: off"
+		}
 	case "?":
 		m.showHelp = !m.showHelp
 	}
@@ -542,7 +686,7 @@ func (m model) View() string {
 }
 
 func (m model) helpLine() string {
-	return "hjkl move  enter open  ⌫ back  p play  / filter  v view  t theme  ? help  q quit"
+	return "hjkl move  enter open  ⌫ back  p play  / filter  v view  t theme  i pics  ? help  q quit"
 }
 
 // renderIndexBar draws the inline album-indexing progress bar.
@@ -586,11 +730,7 @@ func (m model) renderList(h int) string {
 
 func (m model) renderGrid(h int) string {
 	l := m.cur()
-	cols := m.cols()
-	rows := h
-	if rows < 1 {
-		rows = 1
-	}
+	cols, innerW, rows := m.gridDims()
 	perPage := cols * rows
 	// window by page around cursor
 	page := 0
@@ -598,11 +738,7 @@ func (m model) renderGrid(h int) string {
 		page = l.cursor / perPage
 	}
 	startIdx := page * perPage
-
-	cardW := (m.width / cols) - 2
-	if cardW < 8 {
-		cardW = 8
-	}
+	thumbs := m.thumbsEnabled()
 
 	var out []string
 	for r := 0; r < rows; r++ {
@@ -613,20 +749,25 @@ func (m model) renderGrid(h int) string {
 				break
 			}
 			it := l.items[l.vis[idx]]
+			selected := idx == l.cursor
 			var label string
 			if m.caret {
 				mark := "  "
-				if idx == l.cursor {
+				if selected {
 					mark = "› "
 				}
-				label = mark + pad(truncate(vis(it.title), cardW-4), cardW-4)
+				label = mark + pad(truncate(vis(it.title), innerW-2), innerW-2)
 			} else {
-				label = pad(truncate(vis(it.title), cardW-2), cardW-2)
+				label = pad(truncate(vis(it.title), innerW), innerW)
 			}
-			if idx == l.cursor {
-				cells = append(cells, m.st.cardSel.Render(label))
+			content := label
+			if thumbs {
+				content = m.thumbBlock(it.id, innerW) + "\n" + label
+			}
+			if selected {
+				cells = append(cells, m.st.cardSel.Render(content))
 			} else {
-				cells = append(cells, m.st.card.Render(label))
+				cells = append(cells, m.st.card.Render(content))
 			}
 		}
 		if len(cells) > 0 {
@@ -634,6 +775,20 @@ func (m model) renderGrid(h int) string {
 		}
 	}
 	return strings.Join(out, "\n")
+}
+
+// thumbBlock returns the profile-pic art for an artist, or a blank placeholder
+// of the right size while it loads (keeps every card the same height).
+func (m model) thumbBlock(id string, w int) string {
+	if art, ok := m.thumbs[id]; ok && art != "" {
+		return art
+	}
+	blank := strings.Repeat(" ", w)
+	lines := make([]string, m.thumbH())
+	for i := range lines {
+		lines[i] = blank
+	}
+	return strings.Join(lines, "\n")
 }
 
 // ---- helpers --------------------------------------------------------------
