@@ -107,3 +107,9 @@ Playback hands the watch URLs to the player; `mpv --no-video` streams audio only
   `~/.config/gooseneck/logs.json` (artist / album / track / time) and `topArtists`
   ranks the most-listened. Still TODO: a background job that uses that ranking to
   pre-index / refresh hot artists' catalogs on a schedule, keeping them warm.
+- **Rounded thumbnails** — round the corners of profile pics in grid and list
+  for a softer card look.
+- **Placeholder for missing thumbnails** — artists with no `thumbnail` URL
+  render blank; show a generated placeholder (initials / silhouette) instead.
+- **Playback options** — shuffle a queue, and auto-advance ("play on") to the
+  next track / album / artist when the current queue finishes.

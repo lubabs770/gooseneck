@@ -77,5 +77,10 @@ and how profile pics render (real Kitty bitmaps vs. half-block fallback).
   (artist / album / track / time); the most-listened artists are ranked. Still
   TODO: a background job that uses that ranking to pre-index / refresh hot
   artists' catalogs on a schedule.
+- **Rounded thumbnails** — rounded corners on profile pics in grid and list.
+- **Placeholder for missing thumbnails** — generated placeholder (initials /
+  silhouette) for artists without a `thumbnail` URL.
+- **Playback options** — shuffle, and auto-advance to the next track / album /
+  artist when the queue finishes.
 
 See [`player/README.md`](player/README.md#roadmap) for details.
