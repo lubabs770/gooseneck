@@ -31,6 +31,7 @@ type Config struct {
 	ThumbHeight int      `toml:"thumb_height"` // art height in rows; 0 = auto
 	Sidebar     *bool    `toml:"sidebar"`      // now-playing sidebar on wide terminals
 	Volume      int      `toml:"volume"`       // starting volume for the player (0-130)
+	DownloadDir string   `toml:"download_dir"` // where downloads go; "" = ~/Music/gooseneck
 }
 
 // DefaultArtistsURL is the skmusic worker endpoint serving the scraped catalog.
@@ -87,6 +88,28 @@ func DBPath() string { return filepath.Join(Dir(), "cache.db") }
 
 // ThumbDir holds downloaded artist / album art.
 func ThumbDir() string { return filepath.Join(Dir(), "thumbs") }
+
+// DownloadDir is where `goose download` saves audio: download_dir when set,
+// else $XDG_MUSIC_DIR/gooseneck (~/Music/gooseneck). With $GOOSENECK_HOME
+// set it stays inside that dir, so demos and tests never touch real music.
+func (c Config) Downloads() string {
+	if c.DownloadDir != "" {
+		if strings.HasPrefix(c.DownloadDir, "~/") {
+			home, _ := os.UserHomeDir()
+			return filepath.Join(home, c.DownloadDir[2:])
+		}
+		return c.DownloadDir
+	}
+	if d := os.Getenv("GOOSENECK_HOME"); d != "" {
+		return filepath.Join(d, "music")
+	}
+	music := os.Getenv("XDG_MUSIC_DIR")
+	if music == "" {
+		home, _ := os.UserHomeDir()
+		music = filepath.Join(home, "Music")
+	}
+	return filepath.Join(music, "gooseneck")
+}
 
 // LegacyLogPath is the pre-SQLite play history file (imported once).
 func LegacyLogPath() string { return filepath.Join(Dir(), "logs.json") }

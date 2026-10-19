@@ -50,6 +50,18 @@ internal/bidi            Hebrew (RTL) visual reordering for terminals
    video ids into mpv (`mpv.Player.Load`, modes Replace/Append/Next) and logs
    a history row (`plays`).
 
+### Downloads (`library/download.go`)
+
+- `Lib.Download` runs yt-dlp (3 parallel, 3 attempts each — YouTube 403s are
+  often transient) into `Cfg.Downloads()` (`download_dir`, else
+  `$XDG_MUSIC_DIR/gooseneck`, or `$GOOSENECK_HOME/music` when that's set).
+- Files are named `… [<videoId>].ext`; `mpv.VideoIDFromURL` parses that, so a
+  local file is still recognised as the same track (now playing, queue).
+- `Lib.Play` swaps in `LocalPath(id)` whenever the file exists.
+- TUI: `dlState` in `downloads.go` runs one job at a time (more queue up),
+  streaming `dlProgress` over a channel; `dlFinished` is forwarded to pages so
+  they refresh their `offline` markers.
+
 ### Playback daemon (`internal/mpv`)
 
 - First play starts `mpv --idle --no-video --input-ipc-server=<sock>` detached

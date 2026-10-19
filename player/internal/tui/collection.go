@@ -11,14 +11,15 @@ import (
 // entry is one selectable thing on screen: an artist, release, track, queue
 // item or history row.
 type entry struct {
-	key    string
-	title  string
-	sub    string // grid: second line; list: middle column
-	right  string // list: right column (duration, time)
-	num    string // list: left gutter (track number)
-	img    string // art URL
-	active bool   // currently playing
-	data   any
+	key     string
+	title   string
+	sub     string // grid: second line; list: middle column
+	right   string // list: right column (duration, time)
+	num     string // list: left gutter (track number)
+	img     string // art URL
+	active  bool   // currently playing
+	offline bool   // downloaded
+	data    any
 }
 
 // collection is the grid/list widget used by every page: cursor movement,
@@ -277,8 +278,10 @@ func (c *collection) viewList(a *App, w, h int) string {
 		}
 	}
 	rightW := 0
+	dlCol := false // reserve the ↓ column when any visible row is downloaded
 	for i := c.top; i < c.top+visible && i < len(c.vis); i++ {
 		rightW = max(rightW, lipgloss.Width(c.items[c.vis[i]].right))
+		dlCol = dlCol || c.items[c.vis[i]].offline
 	}
 	scroll := len(c.vis) > visible
 	inner := w
@@ -321,7 +324,15 @@ func (c *collection) viewList(a *App, w, h int) string {
 			titleSt = fg(t.Primary).Inherit(bg).Bold(true)
 		}
 		rightTxt := fg(t.Muted).Inherit(bg).Render(padLeft(e.right, rightW))
+		if e.offline {
+			rightTxt = fg(t.Success).Inherit(bg).Render("↓ ") + rightTxt
+		} else if dlCol {
+			rightTxt = bg.Render("  ") + rightTxt
+		}
 		avail := inner - left - rightW - 2
+		if dlCol {
+			avail -= 2
+		}
 		if art {
 			// two lines: title / sub, art on the left
 			l1 := titleSt.Render(padRight(bidi.Vis(e.title), avail)) + bg.Render("  ") + rightTxt

@@ -79,6 +79,9 @@ type App struct {
 	toastAt  time.Time
 
 	omarchySig string // last seen Omarchy theme signature (live theme reload)
+
+	dl       dlState // background downloads
+	quitWarn bool    // q pressed once while downloads were running
 }
 
 // Run starts the TUI and blocks until it exits.
@@ -343,6 +346,9 @@ func (a *App) control(fn func(p *mpv.Player) (string, error)) tea.Cmd {
 
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
+	if cmd, ok := a.updateDL(msg); ok {
+		return a, tea.Batch(cmd, a.img.requests())
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
@@ -428,8 +434,17 @@ func (a *App) key(msg tea.KeyMsg) tea.Cmd {
 	if a.searching {
 		return a.searchKey(msg)
 	}
+	if k != "q" {
+		a.quitWarn = false
+	}
 	switch k {
 	case "q":
+		if a.dl.active != nil && !a.quitWarn {
+			a.quitWarn = true
+			a.notify("downloads are running — q again to quit and cancel them", true)
+			return nil
+		}
+		a.cancelDownloads()
 		return tea.Quit
 	case "ctrl+p", ":":
 		a.dialog = newPalette(a)
@@ -460,6 +475,10 @@ func (a *App) key(msg tea.KeyMsg) tea.Cmd {
 		return nil
 	case "4":
 		p, cmd := newHistoryPage(a)
+		a.goTo(p)
+		return cmd
+	case "5":
+		p, cmd := newDownloadsPage(a)
 		a.goTo(p)
 		return cmd
 	case "b":
@@ -709,6 +728,7 @@ func (a *App) statusBar() string {
 		left += t.muted().Render(" › " + strings.Join(crumbs, " › "))
 	}
 	var right string
+	dl := a.dlStatus()
 	switch {
 	case a.busy > 0:
 		right = t.primary().Render(a.spin()) + t.muted().Render(" working…")
@@ -725,6 +745,13 @@ func (a *App) statusBar() string {
 		hs := a.top().hints(a)
 		hs = append(hs, hint{"ctrl+p", "commands"})
 		right = a.renderHints(hs)
+	}
+	if dl != "" {
+		if right != "" {
+			right = dl + t.subtle().Render("  ·  ") + right
+		} else {
+			right = dl
+		}
 	}
 	line := spread(left, right+" ", a.w)
 	return paint(line, t.Panel, a.w, 1)

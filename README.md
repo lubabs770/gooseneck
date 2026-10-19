@@ -18,6 +18,9 @@ playback from any shell, script or keybinding.
 - **Looks good** — painted theme layers, 14 themes with live preview, a command
   palette, artist pictures and album art (real images on Kitty/Ghostty, colour
   half-block art everywhere else).
+- **Offline** — download a track, album or whole artist with yt-dlp
+  (`goose download`, or `D` in the TUI); downloaded tracks play from disk.
+- **Your desktop's theme** — on Omarchy it follows the current theme, live.
 - **Fully scriptable** — every action is a `goose` command with `--json`
   output and shell completion for artist and album names.
 
@@ -48,7 +51,9 @@ Run `goose`. Start typing to search, `enter` to open, `p` to play.
 | `space` `n` `N` | pause · next · previous |
 | `[` `]` · `{` `}` | seek ∓10s · ∓60s |
 | `-` `+` · `r` | volume · repeat (off → all → one) |
-| `1` `2` `3` `4` | home · library · queue · history |
+| `D` | download the selection for offline play |
+| `m` | radio: the artist plus related artists |
+| `1`–`5` | home · library · queue · history · downloads |
 | `ctrl+p` | command palette (also `/` commands from the home prompt) |
 | `t` · `v` · `i` · `b` | themes · grid/list · art on/off · sidebar |
 | `?` · `q` | help · quit (music keeps playing; `goose stop` stops it) |
@@ -79,6 +84,10 @@ goose play https://youtu.be/<id>          # any single video
 goose now | queue | next | prev | pause | resume | toggle | stop
 goose seek +30 | seek 1:15 | vol 60 | vol -10 | repeat all | shuffle
 goose queue jump 4 | queue rm 2 | queue clear
+goose radio "8th Day"                     # mix of the artist + related artists
+goose download "8th Day" lucky            # save an album for offline play
+goose download fried --top                # …or an artist's top songs
+goose downloads | downloads rm "8th Day" lucky
 goose history | top | tags | artists --tag israeli
 goose catalog update | cache warm --tag famous | doctor
 goose config set theme tokyonight
@@ -120,6 +129,7 @@ volume       = 80             # starting volume
 player       = "mpv"          # other players work fire-and-forget ($APP overrides)
 player_args  = ["--no-video"]
 bin_dir      = ""             # directory holding yt-dlp; "" = $PATH
+download_dir = ""             # "" = ~/Music/gooseneck/<Artist>/<Album>/
 artists_json = ""             # use your own catalog file
 artists_url  = "https://skmusic.shalomkarr.workers.dev/data/artists.json"
 ```
@@ -140,6 +150,10 @@ mode.
 - **Playback** — the first play starts `mpv --idle` with an IPC socket in
   `$XDG_RUNTIME_DIR/gooseneck/`; the TUI and every `goose` command talk to it.
   Audio is streamed by mpv's yt-dlp hook.
+- **Downloads** — `yt-dlp` saves the best audio (m4a when available, tagged
+  when ffmpeg is installed) as `<Artist>/<Album>/NN - Title [id].m4a`. Every
+  play checks for a local copy first, so downloaded music works offline and
+  starts instantly. Re-running a download only fetches what's missing.
 - **Media keys** — install [mpv-mpris](https://github.com/hoyon/mpv-mpris)
   and the daemon shows up in desktop media controls / `playerctl` automatically
   (`goose doctor` tells you if it's there).

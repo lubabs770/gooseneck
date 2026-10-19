@@ -80,3 +80,19 @@ func TestMix(t *testing.T) {
 		t.Fatalf("size cap: %d", len(got))
 	}
 }
+
+func TestTrackPathAndClean(t *testing.T) {
+	t.Setenv("GOOSENECK_HOME", "/x")
+	l := &Lib{}
+	got := l.trackPath(ytm.Song{VideoID: "abcdefghijk", Title: "AC/DC: Why?", Artist: "A, B & C", Album: "Best", Index: 3})
+	want := "/x/music/A/Best/03 - AC-DC- Why- [abcdefghijk]"
+	if got != want {
+		t.Fatalf("trackPath = %q, want %q", got, want)
+	}
+	if got := l.trackPath(ytm.Song{VideoID: "abcdefghijk", Title: "Single"}); got != "/x/music/Unknown Artist/Singles/Single [abcdefghijk]" {
+		t.Fatalf("single path = %q", got)
+	}
+	if clean("..") != "untitled" || clean(" a\x01b ") != "ab" {
+		t.Fatal("clean")
+	}
+}

@@ -266,6 +266,9 @@ func (l *Lib) Play(req PlayRequest) error {
 	ids := make([]string, len(songs))
 	for i, s := range songs {
 		ids[i] = s.VideoID
+		if p := l.LocalPath(s.VideoID); p != "" {
+			ids[i] = p // downloaded: play the file, not the stream
+		}
 		meta[i] = TrackMeta(s)
 	}
 	_ = l.DB.PutTracks(meta)

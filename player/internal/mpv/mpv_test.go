@@ -142,9 +142,10 @@ func TestLoadWhenIdleReplaces(t *testing.T) {
 
 func TestVideoIDFromURL(t *testing.T) {
 	for in, want := range map[string]string{
-		"https://www.youtube.com/watch?v=abc123&list=x": "abc123",
-		"https://youtu.be/xyz?t=3":                      "xyz",
-		"/home/me/song.mp3":                             "",
+		"https://www.youtube.com/watch?v=abc123&list=x":      "abc123",
+		"https://youtu.be/xyz?t=3":                           "xyz",
+		"/home/me/song.mp3":                                  "",
+		"/music/8th Day/Lucky/02 - Rollin [jcCt_6vXZps].m4a": "jcCt_6vXZps",
 	} {
 		if got := VideoIDFromURL(in); got != want {
 			t.Errorf("VideoIDFromURL(%q) = %q, want %q", in, got, want)

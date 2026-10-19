@@ -78,6 +78,11 @@ func (p *libraryPage) update(a *App, msg tea.Msg) tea.Cmd {
 				ar := e.data.(catalog.Artist)
 				return a.radio(ar.ID, ar.Name)
 			}
+		case "D":
+			if e, ok := p.items.selected(); ok {
+				ar := e.data.(catalog.Artist)
+				return a.download(a.artistDownload(ar.ID, ar.Name))
+			}
 		}
 	case tea.MouseMsg:
 		scrollMouse(p.items, msg)
@@ -269,7 +274,7 @@ func (p *artistPage) tabLabel() string {
 }
 
 func (p *artistPage) hints(a *App) []hint {
-	return []hint{{"enter", "open"}, {"p", "play"}, {"P", "play all"}, {"m", "radio"}, {"tab", "section"}}
+	return []hint{{"enter", "open"}, {"p", "play"}, {"m", "radio"}, {"D", "download"}, {"tab", "section"}}
 }
 
 func (p *artistPage) update(a *App, msg tea.Msg) tea.Cmd {
@@ -316,6 +321,22 @@ func (p *artistPage) update(a *App, msg tea.Msg) tea.Cmd {
 			return a.playArtist(p.id, p.name, mpv.Replace, true)
 		case "m":
 			return a.radio(p.id, p.name)
+		case "D":
+			if c == nil {
+				return a.download(a.artistDownload(p.id, p.name))
+			}
+			e, ok := c.selected()
+			if !ok {
+				return nil
+			}
+			switch d := e.data.(type) {
+			case ytm.Release:
+				return a.download(a.releaseDownload(d.BrowseID, d.Title))
+			case ytm.Song:
+				return a.download(dlJob{label: d.Title, songs: []ytm.Song{d}})
+			case catalog.Artist:
+				return a.download(a.artistDownload(d.ID, d.Name))
+			}
 		case "enter", "p", "a", "A", "s":
 			if c == nil {
 				return nil
@@ -497,7 +518,7 @@ func (p *albumPage) filterText() string  { return p.tracks.filter }
 func (p *albumPage) setFilter(f string)  { p.tracks.setFilter(f) }
 func (p *albumPage) placeholder() string { return "Filter tracks…" }
 func (p *albumPage) hints(a *App) []hint {
-	return []hint{{"enter", "play from here"}, {"a", "queue"}, {"A", "play next"}, {"P", "play album"}, {"s", "shuffle"}}
+	return []hint{{"enter", "play from here"}, {"a", "queue"}, {"A", "play next"}, {"s", "shuffle"}, {"D", "download"}}
 }
 
 func (p *albumPage) update(a *App, msg tea.Msg) tea.Cmd {
@@ -513,11 +534,11 @@ func (p *albumPage) update(a *App, msg tea.Msg) tea.Cmd {
 		}
 		p.album = msg.album
 		p.name = msg.album.Title
-		var items []entry
-		for _, s := range msg.album.Tracks {
-			items = append(items, songEntry(s, true))
+		p.markOffline(a)
+	case dlFinished:
+		if p.album != nil {
+			p.markOffline(a)
 		}
-		p.tracks.set(items)
 	case tea.MouseMsg:
 		scrollMouse(p.tracks, msg)
 	case tea.KeyMsg:
@@ -557,9 +578,23 @@ func (p *albumPage) update(a *App, msg tea.Msg) tea.Cmd {
 			pg, cmd := newArtistPage(a, p.artistID, p.artistNm)
 			a.push(pg)
 			return cmd
+		case "D":
+			return a.download(dlJob{label: p.album.Title, songs: p.album.Tracks})
 		}
 	}
 	return nil
+}
+
+// markOffline rebuilds the tracklist with downloaded tracks flagged.
+func (p *albumPage) markOffline(a *App) {
+	have := a.lib.IsDownloaded(p.album.Tracks)
+	var items []entry
+	for _, s := range p.album.Tracks {
+		e := songEntry(s, true)
+		e.offline = have[s.VideoID]
+		items = append(items, e)
+	}
+	p.tracks.set(items)
 }
 
 func (p *albumPage) view(a *App, w, h int) string {
@@ -589,6 +624,17 @@ func (p *albumPage) view(a *App, w, h int) string {
 		if s != "" {
 			meta = append(meta, s)
 		}
+	}
+	offline := 0
+	for _, e := range p.tracks.items {
+		if e.offline {
+			offline++
+		}
+	}
+	if offline == len(al.Tracks) && offline > 0 {
+		meta = append(meta, fg(t.Success).Render("↓ downloaded"))
+	} else if offline > 0 {
+		meta = append(meta, fg(t.Success).Render(fmt.Sprintf("↓ %d/%d downloaded", offline, len(al.Tracks))))
 	}
 	info = append(info, t.muted().Render(strings.Join(meta, " · ")))
 	header := strings.Join(info, "\n")

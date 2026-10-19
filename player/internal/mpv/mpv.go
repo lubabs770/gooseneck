@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -62,11 +63,24 @@ func (p *Player) Managed() bool {
 	return strings.HasPrefix(base, "mpv")
 }
 
+// target turns a bare video id into a watch URL; URLs and file paths pass
+// through unchanged.
+func target(s string) string {
+	if strings.ContainsAny(s, "/\\:") {
+		return s
+	}
+	return VideoURL(s)
+}
+
 // VideoURL builds a watch URL from a video id.
 func VideoURL(id string) string { return "https://www.youtube.com/watch?v=" + id }
 
-// VideoIDFromURL extracts the id from a watch URL ("" if it isn't one).
+// VideoIDFromURL extracts the id from a watch URL, or from a downloaded file
+// named "… [<id>].ext" ("" if neither).
 func VideoIDFromURL(u string) string {
+	if m := fileIDRe.FindStringSubmatch(u); m != nil {
+		return m[1]
+	}
 	for _, marker := range []string{"watch?v=", "youtu.be/", "/shorts/"} {
 		if i := strings.Index(u, marker); i >= 0 {
 			id := u[i+len(marker):]
@@ -78,6 +92,8 @@ func VideoIDFromURL(u string) string {
 	}
 	return ""
 }
+
+var fileIDRe = regexp.MustCompile(`\[([A-Za-z0-9_-]{11})\]\.[A-Za-z0-9]+$`)
 
 // ---- IPC ---------------------------------------------------------------
 
@@ -233,8 +249,9 @@ func (p *Player) Quit() error {
 
 // ---- playback ------------------------------------------------------------------
 
-// Load queues video ids. In Replace mode playback starts at the first id.
-// Unmanaged players get the URLs on their command line instead.
+// Load queues targets: video ids, URLs or local file paths. In Replace mode
+// playback starts at the first one. Unmanaged players get them on their
+// command line instead.
 func (p *Player) Load(ids []string, mode Mode) error {
 	if len(ids) == 0 {
 		return errors.New("nothing to play")
@@ -252,19 +269,19 @@ func (p *Player) Load(ids []string, mode Mode) error {
 	var cmds [][]any
 	switch mode {
 	case Replace:
-		cmds = append(cmds, []any{"loadfile", VideoURL(ids[0]), "replace"})
+		cmds = append(cmds, []any{"loadfile", target(ids[0]), "replace"})
 		for _, id := range ids[1:] {
-			cmds = append(cmds, []any{"loadfile", VideoURL(id), "append"})
+			cmds = append(cmds, []any{"loadfile", target(id), "append"})
 		}
 		cmds = append(cmds, []any{"set_property", "pause", false})
 	case Append:
 		for _, id := range ids {
-			cmds = append(cmds, []any{"loadfile", VideoURL(id), "append-play"})
+			cmds = append(cmds, []any{"loadfile", target(id), "append-play"})
 		}
 	case Next:
 		for i, id := range ids {
 			cmds = append(cmds,
-				[]any{"loadfile", VideoURL(id), "append"},
+				[]any{"loadfile", target(id), "append"},
 				[]any{"playlist-move", st.Count + i, st.Index + 1 + i})
 		}
 	}
@@ -284,7 +301,7 @@ func (p *Player) Load(ids []string, mode Mode) error {
 func (p *Player) spawn(ids []string) error {
 	args := append([]string{}, p.Cfg.PlayerArgs...)
 	for _, id := range ids {
-		args = append(args, VideoURL(id))
+		args = append(args, target(id))
 	}
 	cmd := exec.Command(p.Cfg.Player, args...)
 	cmd.Env = p.Cfg.Env()

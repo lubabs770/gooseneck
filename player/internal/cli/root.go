@@ -127,7 +127,7 @@ Add --json to any listing for machine-readable output.`,
 		&cobra.Group{ID: "play", Title: "Playback:"},
 		&cobra.Group{ID: "more", Title: "More:"},
 	)
-	for _, c := range []*cobra.Command{a.searchCmd(), a.artistsCmd(), a.tagsCmd(), a.artistCmd(), a.albumCmd()} {
+	for _, c := range []*cobra.Command{a.searchCmd(), a.artistsCmd(), a.tagsCmd(), a.artistCmd(), a.albumCmd(), a.downloadCmd(), a.downloadsCmd()} {
 		c.GroupID = "browse"
 		root.AddCommand(c)
 	}

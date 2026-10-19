@@ -35,6 +35,11 @@ func commands(a *App) []command {
 			a.goTo(p)
 			return cmd
 		}},
+		{"downloads", "tracks saved for offline play", "5", func(a *App) tea.Cmd {
+			p, cmd := newDownloadsPage(a)
+			a.goTo(p)
+			return cmd
+		}},
 		{"home", "back to the start", "1", func(a *App) tea.Cmd { a.goTo(nil); return nil }},
 		{"theme", "switch theme (live preview)", "t", func(a *App) tea.Cmd { a.dialog = newThemePicker(a); return nil }},
 		{"pause", "play / pause", "space", ctl(func(p *mpv.Player) (string, error) { _, err := p.TogglePause(); return "", err })},
@@ -65,6 +70,15 @@ func commands(a *App) []command {
 			}
 			ar := list[a.frame*7919%len(list)]
 			return a.playArtist(ar.ID, ar.Name, mpv.Replace, true)
+		}},
+		{"cancel-downloads", "stop downloading (keeps finished tracks)", "", func(a *App) tea.Cmd {
+			if a.dl.active == nil {
+				a.notify("no downloads running", false)
+				return nil
+			}
+			a.cancelDownloads()
+			a.notify("downloads cancelled", false)
+			return nil
 		}},
 		{"sidebar", "toggle the now-playing sidebar", "b", func(a *App) tea.Cmd { a.sidebar = !a.sidebar; return nil }},
 		{"art", "toggle artist & album art", "i", func(a *App) tea.Cmd { a.showImages = !a.showImages; return nil }},
@@ -276,11 +290,12 @@ var helpSections = []struct {
 	{"Navigate", [][2]string{
 		{"hjkl ←↓↑→", "move"}, {"enter", "open / play from here"}, {"esc ⌫", "back"},
 		{"tab", "next section / tag"}, {"g G", "top / bottom"}, {"ctrl+d/u", "half page"},
-		{"/", "search / filter"}, {"1 2 3 4", "home library queue history"},
+		{"/", "search / filter"}, {"1-5", "home lib queue history dl"},
 	}},
 	{"Play", [][2]string{
 		{"p", "play selection"}, {"a", "add to queue"}, {"A", "play next"},
 		{"s", "shuffle selection"}, {"P S", "play / shuffle whole artist"}, {"m", "radio: artist + related"},
+		{"D", "download for offline"},
 	}},
 	{"Player", [][2]string{
 		{"space", "pause"}, {"n N", "next / previous"}, {"[ ]", "seek ∓10s"},

@@ -45,6 +45,12 @@ CREATE TABLE IF NOT EXISTS plays (
   count     INTEGER NOT NULL DEFAULT 1
 );
 CREATE INDEX IF NOT EXISTS plays_at ON plays(at);
+CREATE TABLE IF NOT EXISTS downloads (
+  video_id TEXT PRIMARY KEY,
+  path     TEXT NOT NULL,
+  size     INTEGER NOT NULL DEFAULT 0,
+  at       INTEGER NOT NULL
+);
 `
 
 // Open opens (creating if needed) the database at path.
@@ -299,4 +305,71 @@ func (s *Store) ImportLegacyLog(path string) (int, error) {
 		}
 	}
 	return imported, nil
+}
+
+// ---- downloads ----------------------------------------------------------------
+
+// Download is a track saved to disk.
+type Download struct {
+	Track
+	Path string    `json:"path"`
+	Size int64     `json:"size"`
+	At   time.Time `json:"downloaded_at"`
+}
+
+// PutDownload records a downloaded file for a video id.
+func (s *Store) PutDownload(videoID, path string, size int64) error {
+	_, err := s.db.Exec(`INSERT OR REPLACE INTO downloads(video_id,path,size,at) VALUES(?,?,?,?)`,
+		videoID, path, size, time.Now().Unix())
+	return err
+}
+
+// DownloadPath returns the recorded file for a video id ("" if none). It does
+// not check the file still exists; callers do.
+func (s *Store) DownloadPath(videoID string) string {
+	var p string
+	_ = s.db.QueryRow(`SELECT path FROM downloads WHERE video_id = ?`, videoID).Scan(&p)
+	return p
+}
+
+// DownloadedSet returns which of ids have a recorded download.
+func (s *Store) DownloadedSet(ids []string) map[string]string {
+	out := map[string]string{}
+	for _, id := range ids {
+		if p := s.DownloadPath(id); p != "" {
+			out[id] = p
+		}
+	}
+	return out
+}
+
+// Downloads lists every download with its track metadata, by artist/album.
+func (s *Store) Downloads() ([]Download, error) {
+	rows, err := s.db.Query(`SELECT d.video_id, d.path, d.size, d.at,
+		COALESCE(t.title,''), COALESCE(t.artist,''), COALESCE(t.artist_id,''), COALESCE(t.album,''),
+		COALESCE(t.album_id,''), COALESCE(t.duration,0), COALESCE(t.thumb,'')
+		FROM downloads d LEFT JOIN track_meta t ON t.video_id = d.video_id
+		ORDER BY t.artist COLLATE NOCASE, t.album COLLATE NOCASE, d.path`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Download
+	for rows.Next() {
+		var d Download
+		var at int64
+		if err := rows.Scan(&d.VideoID, &d.Path, &d.Size, &at, &d.Title, &d.Artist, &d.ArtistID,
+			&d.Album, &d.AlbumID, &d.Duration, &d.Thumb); err != nil {
+			return nil, err
+		}
+		d.At = time.Unix(at, 0)
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}
+
+// RemoveDownload forgets a download (the caller deletes the file).
+func (s *Store) RemoveDownload(videoID string) error {
+	_, err := s.db.Exec(`DELETE FROM downloads WHERE video_id = ?`, videoID)
+	return err
 }
