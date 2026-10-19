@@ -20,7 +20,8 @@ import (
 // ---- library: every artist, filterable by tag ------------------------------------
 
 type libraryPage struct {
-	tag   int // 0 = all, else catalog.Tags[tag-1]
+	tag   int    // 0 = all, else catalog.Tags[tag-1]
+	cat   string // "" = every catalog, else one catalog's name
 	items *collection
 }
 
@@ -36,7 +37,11 @@ func (p *libraryPage) load(a *App) {
 	if p.tag > 0 {
 		tg = &catalog.Tags[p.tag-1]
 	}
-	list := a.lib.Cat.Filter(tg)
+	src := a.lib.Cat
+	if sub, err := src.Subset(p.cat); err == nil {
+		src = sub
+	}
+	list := src.Filter(tg)
 	items := make([]entry, len(list))
 	for i, ar := range list {
 		items[i] = artistEntry(ar)
@@ -51,7 +56,11 @@ func (p *libraryPage) filterText() string  { return p.items.filter }
 func (p *libraryPage) setFilter(f string)  { p.items.setFilter(f) }
 func (p *libraryPage) placeholder() string { return "Filter artists…" }
 func (p *libraryPage) hints(a *App) []hint {
-	return []hint{{"enter", "open"}, {"p", "play"}, {"m", "radio"}, {"tab", "tag"}, {"v", "view"}}
+	hs := []hint{{"enter", "open"}, {"p", "play"}, {"m", "radio"}, {"tab", "tag"}}
+	if len(a.lib.Cat.Names()) > 1 {
+		hs = append(hs, hint{"c", "catalog"})
+	}
+	return hs
 }
 
 func (p *libraryPage) update(a *App, msg tea.Msg) tea.Cmd {
@@ -83,6 +92,30 @@ func (p *libraryPage) update(a *App, msg tea.Msg) tea.Cmd {
 			if e, ok := p.items.selected(); ok {
 				ar := e.data.(catalog.Artist)
 				return a.download(a.artistDownload(ar.ID, ar.Name))
+			}
+		case "c": // cycle catalogs: all → each catalog
+			names := a.lib.Cat.Names()
+			if len(names) < 2 {
+				a.notify("only one catalog — add your own: goose catalog new mine", false)
+				return nil
+			}
+			next := ""
+			if p.cat == "" {
+				next = names[0]
+			} else {
+				for i, n := range names {
+					if n == p.cat && i+1 < len(names) {
+						next = names[i+1]
+					}
+				}
+			}
+			p.cat = next
+			p.items.cursor, p.items.top = 0, 0
+			p.load(a)
+			if next == "" {
+				a.notify("all catalogs", false)
+			} else {
+				a.notify("catalog: "+next, false)
 			}
 		}
 	case tea.MouseMsg:
@@ -136,7 +169,13 @@ func (p *libraryPage) view(a *App, w, h int) string {
 		}
 	}
 	chipLine := truncate(strings.Join(chips, " "), w)
-	head := spread(t.bold().Render("Library"), t.muted().Render(fmt.Sprintf("%d artists", p.items.len())), w)
+	title := t.bold().Render("Library")
+	if p.cat != "" {
+		title += t.primary().Render(" · " + p.cat)
+	} else if len(a.lib.Cat.Names()) > 1 {
+		title += t.muted().Render(" · all catalogs")
+	}
+	head := spread(title, t.muted().Render(fmt.Sprintf("%d artists", p.items.len())), w)
 	body := p.items.view(a, w, h-4)
 	return head + "\n" + chipLine + "\n\n" + body
 }

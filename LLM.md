@@ -25,7 +25,7 @@ internal/library         THE service layer: catalog + cache + YouTube Music + pl
 internal/ytm             read-only YouTube Music InnerTube client (artist page, album page)
 internal/mpv             headless mpv daemon over JSON IPC (play/queue/pause/seek/…)
 internal/store           SQLite: response cache (kv), track metadata, play history
-internal/catalog         artists.json load/download, tags, fuzzy search, name resolution
+internal/catalog         artists.json load/download, tags, fuzzy search, name resolution, multi-catalog merge
 internal/art             artist/album art download + disk cache (`goose cache warm`)
 internal/config          TOML config + every on-disk path
 internal/bidi            Hebrew (RTL) visual reordering for terminals
@@ -61,6 +61,20 @@ internal/bidi            Hebrew (RTL) visual reordering for terminals
 - TUI: `dlState` in `downloads.go` runs one job at a time (more queue up),
   streaming `dlProgress` over a channel; `dlFinished` is forwarded to pages so
   they refresh their `offline` markers.
+
+### Catalogs (`catalog/sources.go`)
+
+- `catalog.LoadAll` = main catalog (`Load`) + every `[[catalog]]` in the
+  config (`config.CatalogSource`: `Path` = personal/editable, `URL` = followed,
+  cached at `<config dir>/catalogs/<name>.json`). Duplicates merge by id: first
+  name/picture wins (main is first), tag flags are OR-ed, `Artist.Catalogs`
+  lists every catalog that has it. A broken extra catalog only sets
+  `Source.Err`; it never blocks startup.
+- `Subset(name)` filters (CLI `--catalog`, TUI `c`); `AddTo`/`RemoveFrom`
+  edit personal files atomically. `ytm.SearchArtists` (InnerTube `/search` with
+  the artists filter) powers `goose catalog add-artist <name>`.
+- `config.Keys()` skips struct-slice fields, so `[[catalog]]` can't be broken
+  via `goose config set`.
 
 ### Radio (`library/radio.go`)
 

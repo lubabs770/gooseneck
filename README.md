@@ -117,6 +117,29 @@ goose artist "Avraham Fried" --json | jq -r '.albums[0].title'
 Shell completion (artist and album names complete too):
 `goose completion zsh > "${fpath[1]}/_goose"` (also `bash`, `fish`, `powershell`).
 
+## Catalogs
+
+The main catalog is curated, but you can add your own next to it — a personal
+list, or someone else's published `artists.json` — and they're merged
+everywhere (search, library, completion, radio).
+
+```sh
+goose catalog new mine                              # personal catalog
+goose catalog add-artist mine "Yaakov Shwekey"      # by name (YouTube Music search)…
+goose catalog add-artist mine https://music.youtube.com/channel/UC… --tag chasidish
+goose catalog remove-artist mine shwekey
+goose catalog add friends https://example.com/artists.json   # follow a published one
+goose catalog                                       # list catalogs and counts
+goose catalog update                                # refresh main + URL catalogs
+goose search --catalog mine ''                      # also: goose artists --catalog mine
+```
+
+In the TUI library press `c` to cycle catalogs; from an artist page,
+`ctrl+p` → **add-to-catalog** puts the artist in your personal catalog. An
+artist that appears in several catalogs keeps every tag any of them gives it.
+Catalog files use the same `{"count":N,"artists":[…]}` shape as the main one,
+so a personal catalog can be published and followed by others.
+
 ## Scrobbling
 
 ```sh
@@ -175,6 +198,10 @@ bin_dir      = ""             # directory holding yt-dlp; "" = $PATH
 download_dir = ""             # "" = ~/Music/gooseneck/<Artist>/<Album>/
 artists_json = ""             # use your own catalog file
 artists_url  = "https://skmusic.shalomkarr.workers.dev/data/artists.json"
+
+[[catalog]]                   # extra catalogs (managed by `goose catalog`)
+name = "mine"
+path = "~/.config/gooseneck/catalogs/mine.json"
 ```
 
 `GOOSENECK_HOME=/some/dir` moves config, cache and the player socket somewhere
@@ -231,7 +258,6 @@ demo/setup.sh && vhs demo/tui.tape && vhs demo/cli.tape
 
 ## Roadmap
 
-- **Multiple catalogs** — a personal `artists.json` alongside the main one.
 - **Windows playback control** — mpv's named-pipe IPC (Windows plays, but
   fire-and-forget for now).
 - **Lyrics** in the sidebar where YouTube Music has them.

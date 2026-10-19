@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -117,5 +118,30 @@ func TestSaveIsPrivateAndMasks(t *testing.T) {
 	}
 	if Mask("abcdef123456") != "••••3456" || Mask("") != "" {
 		t.Fatal("Mask")
+	}
+}
+
+func TestCatalogSourcesRoundTrip(t *testing.T) {
+	t.Setenv("GOOSENECK_HOME", t.TempDir())
+	t.Setenv("APP", "")
+	c := Default()
+	c.Catalogs = []CatalogSource{{Name: "mine", Path: "/x/mine.json"}, {Name: "friend", URL: "https://example.com/a.json"}}
+	if err := Save(c); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load()
+	if err != nil || len(got.Catalogs) != 2 || got.Catalogs[1].URL != "https://example.com/a.json" {
+		t.Fatalf("Load = %+v, %v", got.Catalogs, err)
+	}
+	if got.Catalogs[0].File() != "/x/mine.json" || got.Catalogs[1].File() != filepath.Join(Dir(), "catalogs", "friend.json") {
+		t.Fatal("File()")
+	}
+	for _, k := range Keys() {
+		if k == "catalog" {
+			t.Fatal("catalog must not be a plain config key")
+		}
+	}
+	if err := c.Set("catalog", "x"); err == nil {
+		t.Fatal("setting catalog directly should fail")
 	}
 }

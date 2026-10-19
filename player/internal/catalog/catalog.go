@@ -32,6 +32,8 @@ type Artist struct {
 	IsFamous       bool   `json:"isFamous"`
 	IsIsraeli      bool   `json:"isIsraeli"`
 	IsAcapellaOnly bool   `json:"isAcapellaOnly"`
+
+	Catalogs []string `json:"-"` // which loaded catalogs list this artist
 }
 
 // Tag is a named filter over the catalog's boolean flags.
@@ -103,6 +105,7 @@ type Catalog struct {
 	Artists []Artist
 	Path    string    // file it was read from
 	ModTime time.Time // when that file was last written
+	Sources []Source  // every catalog merged in (see LoadAll)
 	byID    map[string]int
 }
 
@@ -141,8 +144,12 @@ func Read(path string) (*Catalog, error) {
 	}
 	var artists []Artist
 	var w wrapped
-	if err := json.Unmarshal(b, &w); err == nil && len(w.Artists) > 0 {
-		artists = w.Artists
+	trimmed := strings.TrimSpace(string(b))
+	if strings.HasPrefix(trimmed, "{") {
+		if err := json.Unmarshal(b, &w); err != nil {
+			return nil, fmt.Errorf("parse %s: %w", path, err)
+		}
+		artists = w.Artists // may be empty: a new personal catalog
 	} else if err := json.Unmarshal(b, &artists); err != nil {
 		return nil, fmt.Errorf("parse %s: %w", path, err)
 	}

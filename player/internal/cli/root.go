@@ -199,7 +199,7 @@ func (a *app) versionCmd() *cobra.Command {
 
 // completeArtist completes catalog names for the first positional argument.
 func (a *app) completeArtist(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	cat, err := catalog.Load(a.cfg)
+	cat, err := catalog.LoadAll(a.cfg)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}

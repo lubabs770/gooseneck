@@ -11,10 +11,11 @@ import (
 )
 
 type artistJSON struct {
-	ID    string   `json:"id"`
-	Name  string   `json:"name"`
-	Tags  []string `json:"tags"`
-	Thumb string   `json:"thumbnail,omitempty"`
+	ID       string   `json:"id"`
+	Name     string   `json:"name"`
+	Tags     []string `json:"tags"`
+	Catalogs []string `json:"catalogs"`
+	Thumb    string   `json:"thumbnail,omitempty"`
 }
 
 func toJSON(as []catalog.Artist) []artistJSON {
@@ -24,7 +25,7 @@ func toJSON(as []catalog.Artist) []artistJSON {
 		if tags == nil {
 			tags = []string{}
 		}
-		out[i] = artistJSON{a.ID, a.Name, tags, a.Thumbnail}
+		out[i] = artistJSON{a.ID, a.Name, tags, a.Catalogs, a.Thumbnail}
 	}
 	return out
 }
@@ -37,7 +38,7 @@ func tagFlag(c *cobra.Command, dst *string) {
 }
 
 func (a *app) searchCmd() *cobra.Command {
-	var tag string
+	var tag, cat string
 	var limit int
 	c := &cobra.Command{
 		Use:     "search <query>",
@@ -55,10 +56,14 @@ func (a *app) searchCmd() *cobra.Command {
 				return usage(err)
 			}
 			q := strings.Join(args, " ")
-			if q == "" && tg == nil {
-				return usage(fmt.Errorf("give a query or --tag"))
+			if q == "" && tg == nil && cat == "" {
+				return usage(fmt.Errorf("give a query, --tag or --catalog"))
 			}
-			res := l.Cat.Search(q, tg)
+			sub, err := l.Cat.Subset(cat)
+			if err != nil {
+				return usage(err)
+			}
+			res := sub.Search(q, tg)
 			if limit > 0 && len(res) > limit {
 				res = res[:limit]
 			}
@@ -76,12 +81,13 @@ func (a *app) searchCmd() *cobra.Command {
 		},
 	}
 	tagFlag(c, &tag)
+	a.catalogFlag(c, &cat)
 	c.Flags().IntVarP(&limit, "limit", "n", 20, "max results (0 = all)")
 	return c
 }
 
 func (a *app) artistsCmd() *cobra.Command {
-	var tag string
+	var tag, cat string
 	c := &cobra.Command{
 		Use:     "artists",
 		Aliases: []string{"ls"},
@@ -97,7 +103,11 @@ func (a *app) artistsCmd() *cobra.Command {
 			if err != nil {
 				return usage(err)
 			}
-			list := l.Cat.Filter(tg)
+			sub, err := l.Cat.Subset(cat)
+			if err != nil {
+				return usage(err)
+			}
+			list := sub.Filter(tg)
 			p := a.out(cmd)
 			if p.json {
 				return p.JSON(toJSON(list))
@@ -113,6 +123,7 @@ func (a *app) artistsCmd() *cobra.Command {
 		},
 	}
 	tagFlag(c, &tag)
+	a.catalogFlag(c, &cat)
 	return c
 }
 

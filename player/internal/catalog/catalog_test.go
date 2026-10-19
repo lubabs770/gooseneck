@@ -138,3 +138,63 @@ func chdir(t *testing.T, dir string) {
 	}
 	t.Cleanup(func() { os.Chdir(old) })
 }
+
+func TestLoadAllMergesCatalogs(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GOOSENECK_HOME", home)
+	main := write(t, `{"count":2,"artists":[{"id":"UCaaaaaaaaaaaaaaaaaaaaaa","name":"Alpha","isFamous":true},{"id":"UCbbbbbbbbbbbbbbbbbbbbbb","name":"Beta"}]}`)
+	mine := filepath.Join(home, "mine.json")
+	if err := Write(mine, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := AddTo(mine, Artist{ID: "UCbbbbbbbbbbbbbbbbbbbbbb", Name: "Beta (mine)", IsChasid: true}); err != nil {
+		t.Fatal(err)
+	}
+	if isNew, err := AddTo(mine, Artist{ID: "UCcccccccccccccccccccccc", Name: "Gamma"}); err != nil || !isNew {
+		t.Fatal("AddTo new", err)
+	}
+	cfg := config.Config{ArtistsJSON: main, Catalogs: []config.CatalogSource{
+		{Name: "mine", Path: mine},
+		{Name: "broken", Path: filepath.Join(home, "missing.json")},
+	}}
+	c, err := LoadAll(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Len() != 3 || len(c.Sources) != 3 {
+		t.Fatalf("merged %d artists from %d sources", c.Len(), len(c.Sources))
+	}
+	b, _ := c.Get("UCbbbbbbbbbbbbbbbbbbbbbb")
+	if b.Name != "Beta" || !b.IsChasid || !b.In(MainName) || !b.In("mine") {
+		t.Fatalf("merged Beta = %+v", b)
+	}
+	if c.Sources[2].Err == "" || !c.Sources[1].Editable || c.Sources[1].Count != 2 {
+		t.Fatalf("sources = %+v", c.Sources)
+	}
+	sub, err := c.Subset("mine")
+	if err != nil || sub.Len() != 2 {
+		t.Fatalf("Subset(mine) = %v, %v", sub, err)
+	}
+	if _, err := c.Subset("nope"); err == nil {
+		t.Fatal("unknown subset should error")
+	}
+	if removed, _ := RemoveFrom(mine, "UCcccccccccccccccccccccc"); !removed {
+		t.Fatal("RemoveFrom")
+	}
+}
+
+func TestChannelIDAndNames(t *testing.T) {
+	for in, want := range map[string]string{
+		"UC_dRX63mhvOrenBjYWJx9mA": "UC_dRX63mhvOrenBjYWJx9mA",
+		"https://music.youtube.com/channel/UC_dRX63mhvOrenBjYWJx9mA?si=x": "UC_dRX63mhvOrenBjYWJx9mA",
+		"https://www.youtube.com/channel/UC_dRX63mhvOrenBjYWJx9mA/videos": "UC_dRX63mhvOrenBjYWJx9mA",
+		"Yaakov Shwekey": "",
+	} {
+		if got := ChannelID(in); got != want {
+			t.Errorf("ChannelID(%q) = %q", in, got)
+		}
+	}
+	if ValidName("mine") != nil || ValidName("Mine!") == nil || ValidName(MainName) == nil {
+		t.Fatal("ValidName")
+	}
+}

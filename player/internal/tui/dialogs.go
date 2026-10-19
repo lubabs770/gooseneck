@@ -71,6 +71,37 @@ func commands(a *App) []command {
 			a.notify("radio off", false)
 			return nil
 		}},
+		{"add-to-catalog", "add this artist to your personal catalog", "", func(a *App) tea.Cmd {
+			ap, ok := a.top().(*artistPage)
+			if !ok || ap.artist == nil {
+				a.notify("open an artist first", true)
+				return nil
+			}
+			var dest *config.CatalogSource
+			for i := range a.lib.Cfg.Catalogs {
+				if c := a.lib.Cfg.Catalogs[i]; c.URL == "" && !c.Disabled {
+					dest = &a.lib.Cfg.Catalogs[i]
+					break
+				}
+			}
+			if dest == nil {
+				a.notify("no personal catalog yet: goose catalog new mine", true)
+				return nil
+			}
+			ar, ok := a.lib.Cat.Get(ap.id)
+			if !ok {
+				ar = catalog.Artist{ID: ap.id, Name: ap.artist.Name, Thumbnail: ap.artist.Thumb}
+			}
+			if _, err := catalog.AddTo(dest.File(), ar); err != nil {
+				a.notify(err.Error(), true)
+				return nil
+			}
+			if cat, err := catalog.LoadAll(a.lib.Cfg); err == nil {
+				a.lib.Cat = cat // pick it up right away
+			}
+			a.notify("added "+ar.Name+" to "+dest.Name, false)
+			return nil
+		}},
 		{"random", "play a random popular artist", "", func(a *App) tea.Cmd {
 			tg, _ := catalog.FindTag("famous")
 			list := a.lib.Cat.Filter(tg)

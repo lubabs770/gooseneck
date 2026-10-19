@@ -115,6 +115,11 @@ func (a *Album) Duration() int {
 // ---- requests --------------------------------------------------------------
 
 func (c *Client) post(ctx context.Context, extraQuery string, body map[string]any) (any, error) {
+	return c.postTo(ctx, "browse", extraQuery, body)
+}
+
+// postTo calls an InnerTube method ("browse", "search") on the same host.
+func (c *Client) postTo(ctx context.Context, method, extraQuery string, body map[string]any) (any, error) {
 	body["context"] = map[string]any{"client": map[string]any{
 		"clientName": clientName, "clientVersion": clientVersion, "hl": "en", "gl": "US",
 	}}
@@ -122,6 +127,9 @@ func (c *Client) post(ctx context.Context, extraQuery string, body map[string]an
 	url := c.Endpoint
 	if url == "" {
 		url = endpoint
+	}
+	if method != "browse" {
+		url = strings.Replace(url, "/browse", "/"+method, 1)
 	}
 	url += extraQuery
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(buf))
@@ -554,4 +562,35 @@ func findString(v any, key, prefix string) string {
 		}
 	}
 	return ""
+}
+
+// artistFilter is YouTube Music's "Artists" search filter.
+const artistFilter = "EgWKAQIgAWoKEAkQChAFEAMQBA%3D%3D"
+
+// SearchArtists finds artists on YouTube Music by name (best match first).
+func (c *Client) SearchArtists(ctx context.Context, query string) ([]ArtistRef, error) {
+	root, err := c.postTo(ctx, "search", "", map[string]any{"query": query, "params": artistFilter})
+	if err != nil {
+		return nil, err
+	}
+	var out []ArtistRef
+	for _, sec := range list(get(findKey(root, "sectionListRenderer"), "contents")) {
+		for _, it := range list(get(sec, "musicShelfRenderer", "contents")) {
+			r := get(it, "musicResponsiveListItemRenderer")
+			id := str(r, "navigationEndpoint", "browseEndpoint", "browseId")
+			if !strings.HasPrefix(id, "UC") {
+				continue
+			}
+			cols := list(get(r, "flexColumns"))
+			ref := ArtistRef{ID: id, Thumb: lastThumb(get(r, "thumbnail"))}
+			if len(cols) > 0 {
+				ref.Name = runs(get(cols[0], "musicResponsiveListItemFlexColumnRenderer", "text"))
+			}
+			if len(cols) > 1 {
+				ref.Subtitle = runs(get(cols[1], "musicResponsiveListItemFlexColumnRenderer", "text"))
+			}
+			out = append(out, ref)
+		}
+	}
+	return out, nil
 }

@@ -42,6 +42,31 @@ type Config struct {
 	LastfmSecret      string `toml:"lastfm_api_secret"`
 	LastfmSession     string `toml:"lastfm_session"` // set by `goose scrobble login lastfm`
 	LastfmUser        string `toml:"lastfm_user"`
+
+	// Extra catalogs merged with the main one (managed by `goose catalog`).
+	Catalogs []CatalogSource `toml:"catalog"`
+}
+
+// CatalogSource is one extra catalog: a local artists.json (Path, editable
+// with `goose catalog add-artist`) or a remote one (URL, cached locally).
+type CatalogSource struct {
+	Name     string `toml:"name"`
+	Path     string `toml:"path,omitempty"`
+	URL      string `toml:"url,omitempty"`
+	Disabled bool   `toml:"disabled,omitempty"`
+}
+
+// File is where this catalog's JSON lives on disk (URL catalogs are cached
+// under <config dir>/catalogs/).
+func (s CatalogSource) File() string {
+	if s.Path != "" {
+		if strings.HasPrefix(s.Path, "~/") {
+			home, _ := os.UserHomeDir()
+			return filepath.Join(home, s.Path[2:])
+		}
+		return s.Path
+	}
+	return filepath.Join(Dir(), "catalogs", s.Name+".json")
 }
 
 // Secret reports whether a config key holds a credential (masked in output).
@@ -268,7 +293,11 @@ func Keys() []string {
 	t := reflect.TypeOf(Config{})
 	keys := make([]string, 0, t.NumField())
 	for i := 0; i < t.NumField(); i++ {
-		keys = append(keys, t.Field(i).Tag.Get("toml"))
+		f := t.Field(i)
+		if f.Type.Kind() == reflect.Slice && f.Type.Elem().Kind() == reflect.Struct {
+			continue // structured lists ([[catalog]]) have their own commands
+		}
+		keys = append(keys, f.Tag.Get("toml"))
 	}
 	sort.Strings(keys)
 	return keys
@@ -278,7 +307,8 @@ func field(cfg *Config, key string) (reflect.Value, error) {
 	v := reflect.ValueOf(cfg).Elem()
 	t := v.Type()
 	for i := 0; i < t.NumField(); i++ {
-		if t.Field(i).Tag.Get("toml") == key {
+		f := t.Field(i)
+		if f.Tag.Get("toml") == key && !(f.Type.Kind() == reflect.Slice && f.Type.Elem().Kind() == reflect.Struct) {
 			return v.Field(i), nil
 		}
 	}

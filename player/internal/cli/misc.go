@@ -108,55 +108,6 @@ func (a *app) topCmd() *cobra.Command {
 	return c
 }
 
-func (a *app) catalogCmd() *cobra.Command {
-	c := &cobra.Command{
-		Use:   "catalog",
-		Short: "Catalog info and refresh (subcommand: update)",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			l, err := a.lib()
-			if err != nil {
-				return err
-			}
-			p := a.out(cmd)
-			info := map[string]any{"artists": l.Cat.Len(), "path": l.Cat.Path, "updated": l.Cat.ModTime, "source": a.cfg.ArtistsURL}
-			if p.json {
-				return p.JSON(info)
-			}
-			p.row("", "artists", fmt.Sprint(l.Cat.Len()))
-			p.row("", "file", l.Cat.Path)
-			p.row("", "updated", ago(l.Cat.ModTime))
-			p.row("", "source", a.cfg.ArtistsURL)
-			return nil
-		},
-	}
-	c.AddCommand(&cobra.Command{
-		Use:   "update",
-		Short: "Download the latest catalog",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			dest := config.CatalogCachePath()
-			if err := catalog.Download(a.cfg.ArtistsURL, dest); err != nil {
-				return err
-			}
-			cat, err := catalog.Read(dest)
-			if err != nil {
-				return err
-			}
-			p := a.out(cmd)
-			if p.json {
-				return p.JSON(map[string]any{"artists": cat.Len(), "path": dest})
-			}
-			p.println(p.S(p.ok, "✓ ") + fmt.Sprintf("catalog updated: %d artists", cat.Len()))
-			if a.cfg.ArtistsJSON != "" {
-				p.println(p.S(p.warn, "note: ") + "artists_json is set in your config, so that file is used instead")
-			}
-			return nil
-		},
-	})
-	return c
-}
-
 func (a *app) cacheCmd() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "cache",

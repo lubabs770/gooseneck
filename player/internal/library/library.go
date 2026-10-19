@@ -39,7 +39,7 @@ type Lib struct {
 
 // Open loads the catalog and database for cfg.
 func Open(cfg config.Config) (*Lib, error) {
-	cat, err := catalog.Load(cfg)
+	cat, err := catalog.LoadAll(cfg)
 	if err != nil {
 		return nil, err
 	}

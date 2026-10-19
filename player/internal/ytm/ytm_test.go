@@ -49,6 +49,8 @@ func fakeServer(t *testing.T) *Client {
 			return
 		}
 		switch {
+		case strings.HasSuffix(r.URL.Path, "/search"):
+			w.Write(fixture(t, "search"))
 		case strings.HasPrefix(body.BrowseID, "MPAD"):
 			w.Write(fixture(t, "discography"))
 		case strings.HasPrefix(body.BrowseID, "MPRE"):
@@ -145,5 +147,16 @@ func TestHelpersTolerateGarbage(t *testing.T) {
 	a, _ := parseArtist(v)
 	if a.Name != "" {
 		t.Fatal("garbage should parse to empty")
+	}
+}
+
+func TestSearchArtists(t *testing.T) {
+	c := fakeServer(t)
+	res, err := c.SearchArtists(context.Background(), "yaakov shwekey")
+	if err != nil || len(res) == 0 {
+		t.Fatalf("SearchArtists = %v, %v", res, err)
+	}
+	if res[0].Name != "Yaakov Shwekey" || res[0].ID != "UC_dRX63mhvOrenBjYWJx9mA" || !strings.HasPrefix(res[0].Subtitle, "Artist") {
+		t.Fatalf("first result = %+v", res[0])
 	}
 }
