@@ -186,3 +186,24 @@ func TestUpdateChangesOnlyOneKey(t *testing.T) {
 		t.Errorf("other keys rewritten: theme=%q view=%q", disk.Theme, disk.View)
 	}
 }
+
+func TestKeyMapRoundTrip(t *testing.T) {
+	t.Setenv("GOOSENECK_HOME", t.TempDir())
+	cfg := Default()
+	cfg.KeyMap = map[string]string{"j": "k", "ctrl+j": "ctrl+k"}
+	if err := Save(cfg); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.KeyMap["j"] != "k" || got.KeyMap["ctrl+j"] != "ctrl+k" {
+		t.Fatalf("KeyMap = %v", got.KeyMap)
+	}
+	for _, k := range Keys() {
+		if k == "keys" || k == "keys,omitempty" {
+			t.Fatal("[keys] must not be a `goose config set` key")
+		}
+	}
+}

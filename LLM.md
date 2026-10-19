@@ -188,6 +188,10 @@ Runtime deps: `yt-dlp` + `mpv`. `goose doctor` checks everything.
   persist goes through `config.Update` (re-reads the file, changes one key),
   never `config.Save` of an in-memory Config (that leaks session state, `$APP`
   and backfilled values into the file).
+- **Key overrides (`[keys]`, `tui/keymap.go`):** handlers match default key
+  strings only; `App.key` remaps each press once (pressed → default key) before
+  dispatch. Add new bindings as default keys and they're overridable for free.
+  Printable keys aren't remapped while `App.typing()` (search, palette).
 - **Config is forward-compatible:** new fields need a backfill in
   `config.normalize`; `*bool` fields are tri-state (nil → default).
 - **CLI args that start with `-`** (`goose seek -10`, `goose config set player_args --no-video`)

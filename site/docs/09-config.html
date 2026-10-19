@@ -28,7 +28,14 @@ artists_url  = "https://skmusic.shalomkarr.workers.dev/data/artists.json"
 
 [[catalog]]                   # extra catalogs (managed by `goose catalog`)
 name = "mine"
-path = "~/.config/gooseneck/catalogs/mine.json"</pre>
+path = "~/.config/gooseneck/catalogs/mine.json"
+[keys]                        # remap TUI keys: pressed = "acts as this default key"
+j = "k"                       # swap down/up; unlisted keys keep their defaults
+k = "j"                       # names: "x", "X", "ctrl+x", "alt+x", "enter", "space", "pgdown", …
+</pre>
+
+<h2>Keys</h2>
+<p>Each entry in <code>[keys]</code> makes the key you press act like one of the default keys, so <code>j = "k"</code> and <code>k = "j"</code> swap down and up. Keys you don't list keep their defaults, and lookups don't chain. Overrides apply on every page and dialog; while you're typing in search or the command palette, letters still type and only keys like <code>ctrl+j</code> are remapped. <code>ctrl+c</code> always quits. Press <code>?</code> in the TUI to see your overrides. A bad key name shows a warning at startup and the rest of the table still applies.</p>
 
 <h2>Environment variables</h2>
 <table>

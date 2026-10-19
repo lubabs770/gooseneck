@@ -93,6 +93,7 @@ type App struct {
 	scrob    *library.ScrobblerStatus // nil when no scrobbler is running
 	dl       dlState                  // background downloads
 	quitWarn bool                     // q pressed once while downloads were running
+	keys     keyMap                   // [keys] overrides from config.toml
 }
 
 // Run starts the TUI and blocks until it exits.
@@ -131,6 +132,11 @@ func newApp(l *library.Lib, opts Options, out *syncWriter) *App {
 		showImages: config.On(l.Cfg.Thumbnails, true),
 		sidebar:    config.On(l.Cfg.Sidebar, true),
 		showHelp:   config.On(l.Cfg.ShowHelp, true),
+	}
+	var bad []string
+	a.keys, bad = newKeyMap(l.Cfg.KeyMap)
+	if len(bad) > 0 {
+		a.notify("[keys] in config.toml: "+strings.Join(bad, "; "), true)
 	}
 	a.omarchySig = omarchySignature()
 	a.input = textinput.New()
@@ -428,10 +434,11 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (a *App) key(msg tea.KeyMsg) tea.Cmd {
-	k := msg.String()
-	if k == "ctrl+c" {
+	if msg.String() == "ctrl+c" {
 		return tea.Quit
 	}
+	msg = a.keys.remap(msg, a.typing())
+	k := msg.String()
 	if a.dialog != nil {
 		return a.dialog.update(a, msg)
 	}
@@ -545,6 +552,15 @@ func (a *App) transportKey(k string) (tea.Cmd, bool) {
 		return a.control(func(p *mpv.Player) (string, error) { return "repeat " + next, p.Repeat(next) }), true
 	}
 	return nil, false
+}
+
+// typing reports whether keys go into a text box (search or the palette).
+func (a *App) typing() bool {
+	if a.dialog != nil {
+		_, palette := a.dialog.(*cmdPalette)
+		return palette
+	}
+	return a.searching
 }
 
 func (a *App) searchKey(msg tea.KeyMsg) tea.Cmd {

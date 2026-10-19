@@ -220,6 +220,10 @@ artists_url  = "https://skmusic.shalomkarr.workers.dev/data/artists.json"
 [[catalog]]                   # extra catalogs (managed by `goose catalog`)
 name = "mine"
 path = "~/.config/gooseneck/catalogs/mine.json"
+
+[keys]                        # remap TUI keys: pressed = "acts as this default key"
+j = "k"                       # swap down/up; unlisted keys keep their defaults
+k = "j"                       # names: "x", "X", "ctrl+x", "alt+x", "enter", "space", "pgdown", …
 ```
 
 `GOOSENECK_HOME=/some/dir` moves config, cache and the player socket somewhere

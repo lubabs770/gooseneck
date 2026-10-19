@@ -45,6 +45,11 @@ type Config struct {
 
 	// Extra catalogs merged with the main one (managed by `goose catalog`).
 	Catalogs []CatalogSource `toml:"catalog"`
+
+	// KeyMap overrides TUI keys: each entry makes the pressed key act like a
+	// default key, e.g. {"j": "k", "k": "j"} swaps up and down. Unlisted keys
+	// keep their defaults.
+	KeyMap map[string]string `toml:"keys,omitempty"`
 }
 
 // CatalogSource is one extra catalog: a local artists.json (Path, editable
@@ -312,8 +317,8 @@ func Keys() []string {
 	keys := make([]string, 0, t.NumField())
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
-		if f.Type.Kind() == reflect.Slice && f.Type.Elem().Kind() == reflect.Struct {
-			continue // structured lists ([[catalog]]) have their own commands
+		if structured(f.Type) {
+			continue // [[catalog]] has its own commands; [keys] is edited by hand
 		}
 		keys = append(keys, f.Tag.Get("toml"))
 	}
@@ -321,12 +326,18 @@ func Keys() []string {
 	return keys
 }
 
+// structured reports fields that don't fit `goose config get/set`: lists of
+// tables and maps.
+func structured(t reflect.Type) bool {
+	return t.Kind() == reflect.Map || t.Kind() == reflect.Slice && t.Elem().Kind() == reflect.Struct
+}
+
 func field(cfg *Config, key string) (reflect.Value, error) {
 	v := reflect.ValueOf(cfg).Elem()
 	t := v.Type()
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
-		if f.Tag.Get("toml") == key && !(f.Type.Kind() == reflect.Slice && f.Type.Elem().Kind() == reflect.Struct) {
+		if f.Tag.Get("toml") == key && !structured(f.Type) {
 			return v.Field(i), nil
 		}
 	}

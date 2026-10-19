@@ -334,10 +334,12 @@ func (h *helpDialog) update(a *App, msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
-var helpSections = []struct {
+type helpSection struct {
 	title string
-	keys  [][2]string
-}{
+	keys  [][2]string // key, what it does
+}
+
+var helpSections = []helpSection{
 	{"Navigate", [][2]string{
 		{"hjkl ←↓↑→", "move"}, {"enter", "open / play from here"}, {"esc ⌫", "back"},
 		{"tab", "next section / tag"}, {"g G", "top / bottom"}, {"ctrl+d/u", "half page"},
@@ -362,8 +364,12 @@ func (h *helpDialog) view(a *App) string {
 	t := a.theme
 	w := min(78, a.w-4)
 	colW := (w - 6) / 2
+	sections := helpSections
+	if remapped := a.keys.pairs(); len(remapped) > 0 {
+		sections = append(sections[:len(sections):len(sections)], helpSection{"Your keys (config.toml)", remapped})
+	}
 	var cols [2][]string
-	for i, s := range helpSections {
+	for i, s := range sections {
 		c := i % 2
 		cols[c] = append(cols[c], t.primary().Bold(true).Render(s.title))
 		for _, k := range s.keys {
