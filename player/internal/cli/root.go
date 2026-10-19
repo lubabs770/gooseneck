@@ -58,7 +58,7 @@ func (a *app) lib() (*library.Lib, error) {
 }
 
 func (a *app) out(cmd *cobra.Command) *printer {
-	return newPrinter(cmd.OutOrStdout(), a.asJSON, a.noColor)
+	return newPrinter(cmd.OutOrStdout(), a.asJSON, a.noColor, tui.GetTheme(a.cfg.Theme))
 }
 
 // ctx is cancelled by ctrl-c.

@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/term"
 	"github.com/lubabs770/gooseneck/player/internal/bidi"
+	"github.com/lubabs770/gooseneck/player/internal/tui"
 	"github.com/muesli/termenv"
 )
 
@@ -25,7 +26,7 @@ type printer struct {
 	title, accent, dim, ok, warn, bad, badge lipgloss.Style
 }
 
-func newPrinter(w io.Writer, asJSON, noColor bool) *printer {
+func newPrinter(w io.Writer, asJSON, noColor bool, th tui.Theme) *printer {
 	p := &printer{w: w, json: asJSON, width: 100}
 	if f, ok := w.(*os.File); ok && term.IsTerminal(f.Fd()) {
 		p.tty = true
@@ -37,14 +38,14 @@ func newPrinter(w io.Writer, asJSON, noColor bool) *printer {
 	if noColor || os.Getenv("NO_COLOR") != "" || !p.tty {
 		p.r.SetColorProfile(termenv.Ascii)
 	}
-	accent := lipgloss.Color("#fab283")
-	p.title = p.r.NewStyle().Bold(true).Foreground(lipgloss.Color("#eeeeee"))
-	p.accent = p.r.NewStyle().Foreground(accent)
-	p.dim = p.r.NewStyle().Foreground(lipgloss.Color("#808080"))
-	p.ok = p.r.NewStyle().Foreground(lipgloss.Color("#7fd88f"))
-	p.warn = p.r.NewStyle().Foreground(lipgloss.Color("#f5a742"))
-	p.bad = p.r.NewStyle().Foreground(lipgloss.Color("#e06c75"))
-	p.badge = p.r.NewStyle().Bold(true).Foreground(lipgloss.Color("#0a0a0a")).Background(accent).Padding(0, 1)
+	// same colors as the TUI (and so the Omarchy desktop, with theme = auto)
+	p.title = p.r.NewStyle().Bold(true).Foreground(th.Text)
+	p.accent = p.r.NewStyle().Foreground(th.Primary)
+	p.dim = p.r.NewStyle().Foreground(th.Muted)
+	p.ok = p.r.NewStyle().Foreground(th.Success)
+	p.warn = p.r.NewStyle().Foreground(th.Warning)
+	p.bad = p.r.NewStyle().Foreground(th.Error)
+	p.badge = p.r.NewStyle().Bold(true).Foreground(th.Bg).Background(th.Primary).Padding(0, 1)
 	return p
 }
 

@@ -77,6 +77,8 @@ type App struct {
 	toast    string
 	toastErr bool
 	toastAt  time.Time
+
+	omarchySig string // last seen Omarchy theme signature (live theme reload)
 }
 
 // Run starts the TUI and blocks until it exits.
@@ -110,6 +112,7 @@ func newApp(l *library.Lib, opts Options, out *syncWriter) *App {
 		showImages: config.On(l.Cfg.Thumbnails, true),
 		sidebar:    config.On(l.Cfg.Sidebar, true),
 	}
+	a.omarchySig = omarchySignature()
 	a.input = textinput.New()
 	a.input.Prompt = ""
 	a.input.CharLimit = 120
@@ -224,7 +227,7 @@ func (a *App) Init() tea.Cmd {
 }
 
 func (a *App) tick() tea.Cmd {
-	d := 1500 * time.Millisecond
+	d := 1000 * time.Millisecond
 	switch {
 	case a.busy > 0 || a.img.pending():
 		d = 120 * time.Millisecond
@@ -346,6 +349,13 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tickMsg:
 		a.frame++
+		if a.theme.Name == "omarchy" && a.dialog == nil {
+			if sig := omarchySignature(); sig != a.omarchySig {
+				a.omarchySig = sig
+				a.setTheme("omarchy") // the user switched Omarchy themes: repaint live
+				a.notify("omarchy theme: "+omarchyName(omarchyThemeDir()), false)
+			}
+		}
 		if a.toast != "" && time.Since(a.toastAt) > 3500*time.Millisecond {
 			a.toast = ""
 		}

@@ -29,7 +29,7 @@ func TestLoadWritesDefaultsAndBackfills(t *testing.T) {
 	if _, err := os.Stat(Path()); err != nil {
 		t.Fatalf("config not written: %v", err)
 	}
-	if c.Theme != "opencode" {
+	if c.Theme != "auto" {
 		t.Fatalf("theme = %q", c.Theme)
 	}
 

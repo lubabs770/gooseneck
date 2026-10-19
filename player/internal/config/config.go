@@ -53,7 +53,7 @@ func Default() Config {
 		Player:     "mpv",
 		PlayerArgs: []string{"--no-video"},
 		ArtistsURL: DefaultArtistsURL,
-		Theme:      "opencode",
+		Theme:      "auto", // Omarchy's theme when installed, else opencode
 		View:       "grid",
 		ShowHelp:   BoolPtr(true),
 		Caret:      BoolPtr(true),

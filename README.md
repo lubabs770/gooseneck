@@ -53,9 +53,15 @@ Run `goose`. Start typing to search, `enter` to open, `p` to play.
 | `t` · `v` · `i` · `b` | themes · grid/list · art on/off · sidebar |
 | `?` · `q` | help · quit (music keeps playing; `goose stop` stops it) |
 
-Themes: `opencode` (default), `ayu`, `catppuccin`, `dracula`, `everforest`,
+**Themes.** On [Omarchy](https://omarchy.org) gooseneck wears your desktop
+theme automatically: the `omarchy` theme reads the current Omarchy theme's
+`colors.toml` and repaints **live** when you switch themes with
+`omarchy theme set` (no restart). Everywhere else the default is `opencode`.
+Built-in palettes: `opencode`, `ayu`, `catppuccin`, `dracula`, `everforest`,
 `gruvbox`, `kanagawa`, `latte`, `matrix`, `mono`, `nord`, `onedark`,
-`rosepine`, `tokyonight`, `system` (uses your terminal's colours).
+`rosepine`, `tokyonight`, and `system` (your terminal's own colours). Press `t`
+for a live-preview picker, or `goose config set theme <name>`; `auto` goes back
+to following Omarchy. The CLI's colours follow the same theme.
 
 ## The CLI
 
@@ -104,7 +110,7 @@ Shell completion (artist and album names complete too):
 `goose config set <key> <value>`:
 
 ```toml
-theme        = "opencode"     # see the theme list above
+theme        = "auto"         # auto = Omarchy's theme if installed, else opencode
 view         = "grid"         # grid | list
 thumbnails   = true           # artist / album art
 thumb_height = 0              # art height in rows; 0 = auto

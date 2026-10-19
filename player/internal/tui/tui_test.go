@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -8,6 +10,7 @@ import (
 )
 
 func TestThemes(t *testing.T) {
+	t.Setenv("GOOSENECK_OMARCHY_THEME", t.TempDir()) // no Omarchy
 	names := ThemeNames()
 	if names[0] != "opencode" || names[len(names)-1] != "system" || len(names) < 10 {
 		t.Fatalf("ThemeNames = %v", names)
@@ -17,7 +20,7 @@ func TestThemes(t *testing.T) {
 			t.Errorf("theme %q does not round-trip", n)
 		}
 	}
-	if GetTheme("default").Name != "opencode" || GetTheme("bogus").Name != "opencode" {
+	if GetTheme("default").Name != "opencode" || GetTheme("bogus").Name != "opencode" || GetTheme("auto").Name != "opencode" {
 		t.Error("legacy/unknown names should map to opencode")
 	}
 	if HasTheme("bogus") {
@@ -116,5 +119,65 @@ func TestLogoAndHelpers(t *testing.T) {
 	}
 	if initials("8th Day") != "8D" || initials("שלום") != "♪" {
 		t.Fatalf("initials: %q %q", initials("8th Day"), initials("שלום"))
+	}
+}
+
+func TestOmarchyTheme(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "theme")
+	os.MkdirAll(dir, 0o755)
+	os.WriteFile(filepath.Join(root, "theme.name"), []byte("tokyo-night\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "colors.toml"), []byte(`mode = "dark"
+accent = "#7aa2f7"
+background = "#1a1b26"
+dark_background = "#13141c"
+lighter_background = "#24283b"
+foreground = "#a9b1d6"
+dark_foreground = "#565f89"
+red = "#f7768e"
+`), 0o644)
+	t.Setenv("GOOSENECK_OMARCHY_THEME", dir)
+
+	if !OmarchyDetected() || ThemeNames()[0] != "omarchy" {
+		t.Fatalf("omarchy not offered: %v", ThemeNames())
+	}
+	for _, n := range []string{"auto", "", "gruvbvox", "default", "omarchy"} {
+		if got := ResolveThemeName(n); got != "omarchy" {
+			t.Errorf("ResolveThemeName(%q) = %q, want omarchy", n, got)
+		}
+	}
+	if ResolveThemeName("nord") != "nord" {
+		t.Error("explicit palettes must still win")
+	}
+	th := GetTheme("auto")
+	if th.Name != "omarchy" || th.Primary != lipgloss.Color("#7aa2f7") || th.Bg != lipgloss.Color("#1a1b26") ||
+		th.Panel != lipgloss.Color("#13141c") || th.Error != lipgloss.Color("#f7768e") || !th.Dark {
+		t.Fatalf("omarchy theme = %+v", th)
+	}
+	if omarchyName(dir) != "tokyo-night" {
+		t.Fatalf("name = %q", omarchyName(dir))
+	}
+
+	// switching themes changes the signature (that's what drives live reload)
+	sig := omarchySignature()
+	os.WriteFile(filepath.Join(dir, "colors.toml"), []byte("mode = \"light\"\nbackground = \"#eff1f5\"\nforeground = \"#4c4f69\"\naccent = \"#1e66f5\"\n"), 0o644)
+	if omarchySignature() == sig {
+		t.Fatal("signature did not change")
+	}
+	if th := GetTheme("omarchy"); th.Dark || th.Primary != lipgloss.Color("#1e66f5") {
+		t.Fatalf("reloaded theme = %+v", th)
+	}
+
+	// Omarchy 3-era theme with only alacritty.toml
+	os.Remove(filepath.Join(dir, "colors.toml"))
+	os.WriteFile(filepath.Join(dir, "alacritty.toml"), []byte(`[colors.primary]
+background = "#282828"
+foreground = "#ebdbb2"
+[colors.normal]
+blue = "#83a598"
+red = "#fb4934"
+`), 0o644)
+	if th := GetTheme("omarchy"); th.Bg != lipgloss.Color("#282828") || th.Primary != lipgloss.Color("#83a598") {
+		t.Fatalf("alacritty fallback = %+v", th)
 	}
 }

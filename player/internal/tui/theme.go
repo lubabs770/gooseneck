@@ -84,43 +84,64 @@ func systemTheme() Theme {
 }
 
 // legacy theme names from gooseneck ≤0.x configs.
-var aliases = map[string]string{"default": "opencode", "catppuccin-mocha": "catppuccin", "tokyo-night": "tokyonight", "rose-pine": "rosepine", "one-dark": "onedark"}
+var aliases = map[string]string{"catppuccin-mocha": "catppuccin", "tokyo-night": "tokyonight", "rose-pine": "rosepine", "one-dark": "onedark"}
 
-// ThemeNames lists the available themes in display order.
+// ThemeNames lists the available themes in display order. "omarchy" (the
+// live Omarchy desktop theme) is listed first when Omarchy is installed.
 func ThemeNames() []string {
-	names := make([]string, 0, len(palettes)+1)
+	names := make([]string, 0, len(palettes)+2)
 	for n := range palettes {
 		if n != "opencode" {
 			names = append(names, n)
 		}
 	}
 	sort.Strings(names)
-	return append(append([]string{"opencode"}, names...), "system")
+	out := []string{"opencode"}
+	if OmarchyDetected() {
+		out = []string{"omarchy", "opencode"}
+	}
+	return append(append(out, names...), "system")
 }
 
-// HasTheme reports whether name (or a legacy alias) is a theme.
+// HasTheme reports whether name (or a legacy alias) is a valid theme setting.
 func HasTheme(name string) bool {
 	name = strings.ToLower(name)
 	if a, ok := aliases[name]; ok {
 		name = a
 	}
 	_, ok := palettes[name]
-	return ok || name == "system"
+	return ok || name == "system" || name == "omarchy" || name == "auto"
 }
 
-// GetTheme returns the named theme, falling back to opencode.
-func GetTheme(name string) Theme {
+// ResolveThemeName turns a config value into a concrete theme name. "auto"
+// (the default), "" and unknown names mean: follow Omarchy when it's
+// installed, otherwise opencode.
+func ResolveThemeName(name string) string {
 	name = strings.ToLower(strings.TrimSpace(name))
 	if a, ok := aliases[name]; ok {
 		name = a
 	}
-	if name == "system" {
+	if _, ok := palettes[name]; ok || name == "system" {
+		return name
+	}
+	if OmarchyDetected() {
+		return "omarchy"
+	}
+	return "opencode"
+}
+
+// GetTheme returns the named theme (see ResolveThemeName).
+func GetTheme(name string) Theme {
+	switch name = ResolveThemeName(name); name {
+	case "system":
 		return systemTheme()
+	case "omarchy":
+		if t, err := loadOmarchyTheme(); err == nil {
+			return t
+		}
+		return palettes["opencode"].theme("opencode")
 	}
-	if p, ok := palettes[name]; ok {
-		return p.theme(name)
-	}
-	return palettes["opencode"].theme("opencode")
+	return palettes[name].theme(name)
 }
 
 // st is a tiny style constructor bound to a foreground color.

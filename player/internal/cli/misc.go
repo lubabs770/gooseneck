@@ -332,6 +332,9 @@ func (a *app) configCmd() *cobra.Command {
 			}
 			for _, k := range config.Keys() {
 				v, _ := a.cfg.Get(k)
+				if k == "theme" && tui.ResolveThemeName(v) != v {
+					v += p.S(p.dim, " → "+tui.ResolveThemeName(v))
+				}
 				p.row("", fmt.Sprintf("%-13s", k), v)
 			}
 			p.println(p.S(p.dim, config.Path()))

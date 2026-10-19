@@ -79,6 +79,15 @@ internal/bidi            Hebrew (RTL) visual reordering for terminals
   frames and an upload embedded in a dropped frame is lost. Half-block art is
   the fallback (also what tmux and VHS show).
 - Themes are OpenCode-style token sets in `theme.go` (`ThemeNames`, `GetTheme`).
+  `ResolveThemeName` maps the config value: `auto` (default), `""` and unknown
+  names → `omarchy` when Omarchy is installed, else `opencode`.
+- **Omarchy** (`omarchy.go`): reads `colors.toml` (fallback `alacritty.toml`)
+  from `~/.local/state/omarchy/current/theme` (Omarchy 4) or
+  `~/.config/omarchy/current/theme` (Omarchy 3); `GOOSENECK_OMARCHY_THEME`
+  overrides (tests set it to an empty dir to disable detection). Live reload:
+  every tick compares `omarchySignature()` (resolved path + mtimes) and calls
+  `setTheme("omarchy")` on change. Never run `omarchy theme set` in tests — it
+  restyles the user's whole desktop; point the override at a temp copy instead.
 
 ## Build / run / test
 
