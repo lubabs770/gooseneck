@@ -125,7 +125,7 @@ func (c *collection) key(k string, listMode bool) bool {
 	switch k {
 	case "down", "j", "ctrl+n":
 		c.cursor = clamp(c.cursor+c.step(), 0, n-1)
-	case "up", "k", "ctrl+p":
+	case "up", "k", "ctrl+k":
 		c.cursor = clamp(c.cursor-c.step(), 0, n-1)
 	case "right", "l":
 		if !c.grid {

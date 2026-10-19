@@ -81,6 +81,9 @@ type App struct {
 
 // Run starts the TUI and blocks until it exits.
 func Run(l *library.Lib, opts Options) error {
+	// Themes set every color explicitly, so skip lipgloss's OSC 11 background
+	// query: terminals that never answer it would stall startup for seconds.
+	lipgloss.SetHasDarkBackground(true)
 	out := &syncWriter{f: os.Stdout}
 	a := newApp(l, opts, out)
 	p := tea.NewProgram(a, tea.WithAltScreen(), tea.WithMouseCellMotion(), tea.WithOutput(out), tea.WithFPS(30))
@@ -407,6 +410,11 @@ func (a *App) key(msg tea.KeyMsg) tea.Cmd {
 	if a.dialog != nil {
 		return a.dialog.update(a, msg)
 	}
+	if k == "ctrl+p" { // the palette is reachable from everywhere, even mid-search
+		a.blurSearch()
+		a.dialog = newPalette(a)
+		return nil
+	}
 	if a.searching {
 		return a.searchKey(msg)
 	}
@@ -511,7 +519,7 @@ func (a *App) searchKey(msg tea.KeyMsg) tea.Cmd {
 		a.input.SetValue("")
 		a.blurSearch()
 		return nil
-	case "enter", "up", "down", "ctrl+n", "ctrl+p", "tab", "shift+tab", "pgup", "pgdown":
+	case "enter", "up", "down", "ctrl+n", "ctrl+k", "tab", "shift+tab", "pgup", "pgdown":
 		if msg.String() == "enter" {
 			if _, home := a.top().(*homePage); !home {
 				a.blurSearch()
