@@ -15,3 +15,6 @@ func detach(cmd *exec.Cmd) {}
 func dial(sock string) (net.Conn, error) {
 	return nil, errors.New("mpv IPC is not supported on Windows")
 }
+
+// Detach is a no-op on Windows.
+func Detach(cmd *exec.Cmd) {}

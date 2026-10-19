@@ -15,3 +15,6 @@ func detach(cmd *exec.Cmd) {
 }
 
 func dial(sock string) (net.Conn, error) { return dialTimeout("unix", sock) }
+
+// Detach starts cmd in its own session (exported for other background helpers).
+func Detach(cmd *exec.Cmd) { detach(cmd) }

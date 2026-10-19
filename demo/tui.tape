@@ -46,7 +46,11 @@ Sleep 1.5s
 Space
 Sleep 1s
 Type "n"
-Sleep 4s
+Sleep 3s
+
+# download the album for offline play (progress in the status bar)
+Type "D"
+Sleep 7s
 
 # back to the artist, flip through sections
 Escape
@@ -80,8 +84,10 @@ Up@700ms 3
 Escape
 Sleep 800ms
 
-# queue
+# queue, then the offline downloads page
 Type "3"
+Sleep 2.5s
+Type "5"
 Sleep 2.5s
 
 # help

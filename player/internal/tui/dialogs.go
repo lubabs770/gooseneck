@@ -88,6 +88,27 @@ func commands(a *App) []command {
 			}
 			return nil
 		}},
+		{"scrobble", "turn scrobbling on/off (set up with `goose scrobble login`)", "", func(a *App) tea.Cmd {
+			on := !config.On(a.lib.Cfg.Scrobble, true)
+			cfg := a.lib.Cfg
+			cfg.Scrobble = config.BoolPtr(on)
+			if err := config.Save(cfg); err != nil {
+				a.notify(err.Error(), true)
+				return nil
+			}
+			a.lib.Cfg.Scrobble = cfg.Scrobble
+			if !on {
+				a.notify("scrobbling off", false)
+				return nil
+			}
+			if len(a.lib.ScrobbleServices()) == 0 {
+				a.notify("scrobbling on, but no service is set up: goose scrobble login", true)
+				return nil
+			}
+			go a.lib.EnsureScrobbler()
+			a.notify("scrobbling on", false)
+			return nil
+		}},
 		{"hints", "toggle key hints in the status bar", "", func(a *App) tea.Cmd {
 			on := !config.On(a.lib.Cfg.ShowHelp, true)
 			a.lib.Cfg.ShowHelp = config.BoolPtr(on)

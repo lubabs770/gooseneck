@@ -80,8 +80,9 @@ type App struct {
 
 	omarchySig string // last seen Omarchy theme signature (live theme reload)
 
-	dl       dlState // background downloads
-	quitWarn bool    // q pressed once while downloads were running
+	scrob    *library.ScrobblerStatus // nil when no scrobbler is running
+	dl       dlState                  // background downloads
+	quitWarn bool                     // q pressed once while downloads were running
 }
 
 // Run starts the TUI and blocks until it exits.
@@ -195,6 +196,7 @@ type tickMsg time.Time
 type pollMsg struct {
 	now   library.NowPlaying
 	queue []library.QueueItem
+	scrob *library.ScrobblerStatus
 	err   error
 }
 
@@ -216,6 +218,7 @@ type albumLoaded struct {
 }
 
 func (a *App) Init() tea.Cmd {
+	go a.lib.EnsureScrobbler() // music may already be playing from an earlier session
 	cmds := []tea.Cmd{a.tick(), a.poll(), textinput.Blink}
 	if a.opts.Artist != "" {
 		if ar, err := a.lib.ResolveArtist(a.opts.Artist); err == nil {
@@ -254,7 +257,11 @@ func (a *App) poll() tea.Cmd {
 		if err == nil && !np.Idle {
 			q, _ = l.Queue()
 		}
-		return pollMsg{np, q, err}
+		var sc *library.ScrobblerStatus
+		if st, e := library.QueryScrobbler(); e == nil {
+			sc = &st
+		}
+		return pollMsg{np, q, sc, err}
 	}
 }
 
@@ -376,6 +383,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case pollMsg:
 		a.polling = false
+		a.scrob = msg.scrob
 		a.playerUp = msg.err == nil
 		if msg.err == nil {
 			a.now, a.queue = msg.now, msg.queue
@@ -811,6 +819,13 @@ func (a *App) sidebarView(w, h int) string {
 			meta = append(meta, "⟳ "+np.Repeat)
 		}
 		b = append(b, t.muted().Render(strings.Join(meta, " · ")))
+		if sc := a.scrob; sc != nil && sc.Current != nil && sc.Current.VideoID == np.VideoID {
+			if sc.Scrobbled {
+				b = append(b, fg(t.Success).Render("✓ scrobbled"))
+			} else {
+				b = append(b, t.subtle().Render(fmt.Sprintf("♫ scrobble in %s", ytm.FormatDuration(int(sc.Needed-sc.Played)))))
+			}
+		}
 
 		// up next
 		var next []library.QueueItem

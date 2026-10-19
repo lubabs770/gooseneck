@@ -13,6 +13,7 @@ import (
 	"github.com/lubabs770/gooseneck/player/internal/art"
 	"github.com/lubabs770/gooseneck/player/internal/catalog"
 	"github.com/lubabs770/gooseneck/player/internal/config"
+	"github.com/lubabs770/gooseneck/player/internal/library"
 	"github.com/lubabs770/gooseneck/player/internal/tui"
 	"github.com/spf13/cobra"
 )
@@ -327,11 +328,17 @@ func (a *app) configCmd() *cobra.Command {
 				out := map[string]string{}
 				for _, k := range config.Keys() {
 					out[k], _ = a.cfg.Get(k)
+					if config.Secret(k) {
+						out[k] = config.Mask(out[k])
+					}
 				}
 				return p.JSON(out)
 			}
 			for _, k := range config.Keys() {
 				v, _ := a.cfg.Get(k)
+				if config.Secret(k) {
+					v = config.Mask(v)
+				}
 				if k == "theme" && tui.ResolveThemeName(v) != v {
 					v += p.S(p.dim, " → "+tui.ResolveThemeName(v))
 				}
@@ -461,6 +468,19 @@ func (a *app) doctorCmd() *cobra.Command {
 				} else {
 					add("youtube music", true, fmt.Sprintf("reachable (%dms)", time.Since(start).Milliseconds()), "")
 				}
+			}
+			if svcs := l.ScrobbleServices(); len(svcs) > 0 {
+				var names []string
+				for _, s := range svcs {
+					names = append(names, s.Name())
+				}
+				detail := "to " + strings.Join(names, " + ")
+				if _, err := library.QueryScrobbler(); err == nil {
+					detail += " · scrobbler running"
+				}
+				add("scrobbling", true, detail, "")
+			} else {
+				add("scrobbling", true, "optional: goose scrobble login listenbrainz|lastfm", "")
 			}
 			if runtime.GOOS == "linux" {
 				if mprisInstalled() {

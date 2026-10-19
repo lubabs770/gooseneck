@@ -32,6 +32,30 @@ type Config struct {
 	Sidebar     *bool    `toml:"sidebar"`      // now-playing sidebar on wide terminals
 	Volume      int      `toml:"volume"`       // starting volume for the player (0-130)
 	DownloadDir string   `toml:"download_dir"` // where downloads go; "" = ~/Music/gooseneck
+
+	// Scrobbling (see `goose scrobble`). Secrets: the file is saved 0600.
+	Scrobble          *bool  `toml:"scrobble"`           // master switch (default on; needs a login)
+	ListenBrainzToken string `toml:"listenbrainz_token"` // https://listenbrainz.org/settings/
+	LastfmKey         string `toml:"lastfm_api_key"`     // https://www.last.fm/api/account/create
+	LastfmSecret      string `toml:"lastfm_api_secret"`
+	LastfmSession     string `toml:"lastfm_session"` // set by `goose scrobble login lastfm`
+	LastfmUser        string `toml:"lastfm_user"`
+}
+
+// Secret reports whether a config key holds a credential (masked in output).
+func Secret(key string) bool {
+	return strings.Contains(key, "token") || strings.Contains(key, "secret") || key == "lastfm_session"
+}
+
+// Mask hides all but the last 4 characters of a secret.
+func Mask(v string) string {
+	if v == "" {
+		return ""
+	}
+	if len(v) <= 4 {
+		return "••••"
+	}
+	return "••••" + v[len(v)-4:]
 }
 
 // DefaultArtistsURL is the skmusic worker endpoint serving the scraped catalog.
@@ -60,6 +84,7 @@ func Default() Config {
 		Caret:      BoolPtr(true),
 		Thumbnails: BoolPtr(true),
 		Sidebar:    BoolPtr(true),
+		Scrobble:   BoolPtr(true),
 		Volume:     80,
 	}
 }
@@ -149,7 +174,7 @@ func normalize(cfg Config) Config {
 	if cfg.Player == "" {
 		cfg.Player = d.Player
 	}
-	for _, p := range []**bool{&cfg.ShowHelp, &cfg.Caret, &cfg.Thumbnails, &cfg.Sidebar} {
+	for _, p := range []**bool{&cfg.ShowHelp, &cfg.Caret, &cfg.Thumbnails, &cfg.Sidebar, &cfg.Scrobble} {
 		if *p == nil {
 			*p = BoolPtr(true)
 		}
@@ -170,12 +195,21 @@ func Save(cfg Config) error {
 	if err := os.MkdirAll(Dir(), 0o755); err != nil {
 		return err
 	}
-	f, err := os.Create(Path())
+	// 0600: the config can hold scrobbling credentials. Write to a temp file
+	// and rename so a crash never leaves a half-written config.
+	tmp := Path() + ".tmp"
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	return toml.NewEncoder(f).Encode(cfg)
+	if err := toml.NewEncoder(f).Encode(cfg); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp, Path())
 }
 
 // applyEnv lets $APP override the configured player at runtime.

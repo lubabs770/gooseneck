@@ -59,6 +59,10 @@ Type "clear; goose radio 'Avraham Fried' && goose now"
 Enter
 Sleep 6s
 
+Type "clear; goose download '8th Day' 'Inner Flame'"
+Enter
+Sleep 9s
+
 Type "goose history -n 3"
 Enter
 Sleep 3s

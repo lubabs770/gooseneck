@@ -45,6 +45,13 @@ CREATE TABLE IF NOT EXISTS plays (
   count     INTEGER NOT NULL DEFAULT 1
 );
 CREATE INDEX IF NOT EXISTS plays_at ON plays(at);
+CREATE TABLE IF NOT EXISTS scrobble_queue (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  service  TEXT NOT NULL,
+  listen   BLOB NOT NULL,
+  at       INTEGER NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS downloads (
   video_id TEXT PRIMARY KEY,
   path     TEXT NOT NULL,
@@ -372,4 +379,74 @@ func (s *Store) Downloads() ([]Download, error) {
 func (s *Store) RemoveDownload(videoID string) error {
 	_, err := s.db.Exec(`DELETE FROM downloads WHERE video_id = ?`, videoID)
 	return err
+}
+
+// ---- scrobble queue ---------------------------------------------------------------
+
+// QueuedScrobble is a listen waiting to be submitted to a service.
+type QueuedScrobble struct {
+	ID       int64
+	Service  string
+	Listen   []byte // JSON
+	Attempts int
+}
+
+// QueueScrobble stores a listen for later submission.
+func (s *Store) QueueScrobble(service string, listen []byte) error {
+	_, err := s.db.Exec(`INSERT INTO scrobble_queue(service, listen, at) VALUES(?,?,?)`, service, listen, time.Now().Unix())
+	return err
+}
+
+// PendingScrobbles returns the oldest queued listens for a service.
+func (s *Store) PendingScrobbles(service string, limit int) ([]QueuedScrobble, error) {
+	rows, err := s.db.Query(`SELECT id, service, listen, attempts FROM scrobble_queue
+		WHERE service = ? ORDER BY id LIMIT ?`, service, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []QueuedScrobble
+	for rows.Next() {
+		var q QueuedScrobble
+		if err := rows.Scan(&q.ID, &q.Service, &q.Listen, &q.Attempts); err != nil {
+			return nil, err
+		}
+		out = append(out, q)
+	}
+	return out, rows.Err()
+}
+
+// DoneScrobbles removes submitted (or permanently rejected) listens.
+func (s *Store) DoneScrobbles(ids []int64) error {
+	for _, id := range ids {
+		if _, err := s.db.Exec(`DELETE FROM scrobble_queue WHERE id = ?`, id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// RetryScrobbles bumps the attempt counter after a failed submission.
+func (s *Store) RetryScrobbles(ids []int64) {
+	for _, id := range ids {
+		_, _ = s.db.Exec(`UPDATE scrobble_queue SET attempts = attempts + 1 WHERE id = ?`, id)
+	}
+}
+
+// QueuedScrobbleCount counts waiting listens per service.
+func (s *Store) QueuedScrobbleCount() map[string]int {
+	out := map[string]int{}
+	rows, err := s.db.Query(`SELECT service, COUNT(*) FROM scrobble_queue GROUP BY service`)
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var svc string
+		var n int
+		if rows.Scan(&svc, &n) == nil {
+			out[svc] = n
+		}
+	}
+	return out
 }

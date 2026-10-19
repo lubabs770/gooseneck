@@ -100,3 +100,22 @@ func TestGetSet(t *testing.T) {
 		t.Fatalf("Keys = %v", Keys())
 	}
 }
+
+func TestSaveIsPrivateAndMasks(t *testing.T) {
+	t.Setenv("GOOSENECK_HOME", t.TempDir())
+	c := Default()
+	c.ListenBrainzToken = "abcdef123456"
+	if err := Save(c); err != nil {
+		t.Fatal(err)
+	}
+	st, _ := os.Stat(Path())
+	if st.Mode().Perm() != 0o600 {
+		t.Fatalf("config perms %o, want 600", st.Mode().Perm())
+	}
+	if !Secret("listenbrainz_token") || !Secret("lastfm_session") || Secret("theme") {
+		t.Fatal("Secret")
+	}
+	if Mask("abcdef123456") != "••••3456" || Mask("") != "" {
+		t.Fatal("Mask")
+	}
+}

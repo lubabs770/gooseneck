@@ -20,6 +20,8 @@ playback from any shell, script or keybinding.
   half-block art everywhere else).
 - **Offline** — download a track, album or whole artist with yt-dlp
   (`goose download`, or `D` in the TUI); downloaded tracks play from disk.
+- **Scrobbling** — to ListenBrainz and/or Last.fm, by real listening time,
+  even after the TUI is closed; offline listens are queued.
 - **Your desktop's theme** — on Omarchy it follows the current theme, live.
 - **Fully scriptable** — every action is a `goose` command with `--json`
   output and shell completion for artist and album names.
@@ -112,6 +114,29 @@ goose artist "Avraham Fried" --json | jq -r '.albums[0].title'
 
 Shell completion (artist and album names complete too):
 `goose completion zsh > "${fpath[1]}/_goose"` (also `bash`, `fish`, `powershell`).
+
+## Scrobbling
+
+```sh
+goose scrobble login listenbrainz     # paste your token from listenbrainz.org/settings
+goose scrobble login lastfm           # approve gooseneck in your browser (see below)
+goose scrobble                        # status: services, current track, queue
+goose scrobble off | on | flush | logout lastfm
+```
+
+A small background scrobbler starts with playback and exits when the player
+does, so listens count whether or not the TUI is open. It uses Last.fm's
+rules: a track counts after half its length or 4 minutes of *actual*
+listening (pauses and seeking don't count), and tracks under 30 seconds never
+count. "Now playing" is sent too, and the TUI sidebar shows when the current
+track will scrobble. Listens that can't be sent (offline, service down) are
+queued in the database and retried.
+
+Last.fm makes every app use an API key: create one at
+<https://www.last.fm/api/account/create> (free; the callback URL can stay
+empty) and pass it once with `goose scrobble login lastfm --key … --secret …`.
+Credentials live in the config file, which gooseneck writes with mode `0600`
+and masks in `goose config` output.
 
 ## Config
 

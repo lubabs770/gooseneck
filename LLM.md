@@ -62,6 +62,26 @@ internal/bidi            Hebrew (RTL) visual reordering for terminals
   streaming `dlProgress` over a channel; `dlFinished` is forwarded to pages so
   they refresh their `offline` markers.
 
+### Scrobbling (`internal/scrobble`, `library/scrobbler.go`)
+
+- `scrobble.Tracker` is pure logic (unit-tested): fed player snapshots, it
+  emits NowPlaying / Scrobble events by wall-clock listening time (½ track or
+  4 min, ≥30s tracks; gaps >15s ignored; repeat-one detected by the position
+  jumping back to the start).
+- `ListenBrainz` (token) and `LastFM` (key/secret + session, md5-signed calls)
+  implement `scrobble.Service`. `GOOSENECK_LISTENBRAINZ_URL` overrides the
+  endpoint for tests.
+- `goose scrobble daemon` (hidden) runs `Lib.RunScrobbler`: polls mpv every 2s,
+  queues scrobbles in SQLite (`scrobble_queue`) then flushes; holds
+  `$RUNTIME/scrobbler.sock` as a single-instance lock that also serves its
+  status as JSON (`QueryScrobbler`). Started by `Lib.EnsureScrobbler` on every
+  play and at TUI start; exits 30s after the player goes away or when
+  `scrobble = false` appears in the config. Log: `$RUNTIME/scrobbler.log`.
+- Auth errors keep listens queued; only malformed-data rejections
+  (`scrobble.Permanent`) drop them.
+- Config holds secrets: `config.Save` writes 0600; `config.Secret`/`Mask` hide
+  them in `goose config` output. Never print or commit real tokens.
+
 ### Playback daemon (`internal/mpv`)
 
 - First play starts `mpv --idle --no-video --input-ipc-server=<sock>` detached
