@@ -1,36 +1,14 @@
+// Command gooseneck-player (installed as `goose`) is a TUI and CLI for the
+// gooseneck catalog of Jewish music artists.
 package main
 
 import (
-	"fmt"
 	"os"
 
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/lubabs770/gooseneck/player/internal/cli"
 )
 
-func main() {
-	cfg, err := loadConfig()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "config:", err)
-		os.Exit(1)
-	}
-	artists, err := loadArtists(cfg)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	cache, err := openCache(cacheDBPath())
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "cache:", err)
-		os.Exit(1)
-	}
-	defer cache.Close()
+// version is set at build time: -ldflags "-X main.version=v1.2.3".
+var version = "dev"
 
-	p := tea.NewProgram(newModel(cfg, cache, artists), tea.WithAltScreen())
-	if _, err := p.Run(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	if kittyCapable() { // clear any transmitted images on the way out
-		fmt.Print(kittyDeleteAll())
-	}
-}
+func main() { os.Exit(cli.Execute(version)) }

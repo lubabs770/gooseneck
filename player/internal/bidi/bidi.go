@@ -1,9 +1,11 @@
-package main
+// Package bidi reorders right-to-left text (Hebrew) for terminals, which render
+// strictly left to right.
+package bidi
 
 import (
 	"strings"
 
-	"golang.org/x/text/unicode/bidi"
+	xbidi "golang.org/x/text/unicode/bidi"
 )
 
 // mirrored glyphs that must flip when an RTL run is reversed for display.
@@ -12,14 +14,14 @@ var mirrored = map[rune]rune{
 	'{': '}', '}': '{', '<': '>', '>': '<',
 }
 
-// vis converts a logical-order string to visual order for a terminal, which
+// Vis converts a logical-order string to visual order for a terminal, which
 // renders left-to-right and does no BiDi reordering of its own. Hebrew (and
 // other RTL) runs come out readable. Pure-LTR strings are returned untouched.
-func vis(s string) string {
-	if !hasRTL(s) {
+func Vis(s string) string {
+	if !HasRTL(s) {
 		return s
 	}
-	p := &bidi.Paragraph{}
+	p := &xbidi.Paragraph{}
 	if _, err := p.SetString(s); err != nil {
 		return s
 	}
@@ -31,7 +33,7 @@ func vis(s string) string {
 	for i := 0; i < order.NumRuns(); i++ {
 		run := order.Run(i)
 		rs := run.String()
-		if run.Direction() == bidi.RightToLeft {
+		if run.Direction() == xbidi.RightToLeft {
 			rs = reverseMirror(rs)
 		}
 		b.WriteString(rs)
@@ -39,7 +41,8 @@ func vis(s string) string {
 	return b.String()
 }
 
-func hasRTL(s string) bool {
+// HasRTL reports whether s contains Hebrew or Arabic characters.
+func HasRTL(s string) bool {
 	for _, r := range s {
 		if r >= 0x0590 && r <= 0x08FF { // Hebrew + Arabic blocks
 			return true
