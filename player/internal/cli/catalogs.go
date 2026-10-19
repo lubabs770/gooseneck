@@ -48,7 +48,7 @@ personal list, or someone else's published artists.json.
 				if s.Err != "" {
 					mark, right = p.S(p.bad, "✗ "), p.S(p.bad, s.Err)
 				}
-				p.row(mark, fmt.Sprintf("%-12s %5d artists", s.Name, s.Count), right)
+				p.row(mark, fmt.Sprintf("%-12s %5d%s", s.Name, s.Count, plural(s.Count, " artist")), right)
 			}
 			p.println(p.S(p.dim, fmt.Sprintf("%d artists in total", l.Cat.Len())))
 			return nil

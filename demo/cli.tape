@@ -30,14 +30,9 @@ Sleep 300ms
 Enter
 Sleep 2.5s
 
-Type "clear; goose play '8th Day' lucky --shuffle"
-Sleep 300ms
+Type "clear; goose play '8th Day' lucky --shuffle && sleep 3 && goose now"
 Enter
-Sleep 4s
-
-Type "goose now"
-Enter
-Sleep 2.5s
+Sleep 6s
 
 Type "goose next && goose vol 60"
 Enter
@@ -47,25 +42,21 @@ Type "goose now --format '{state}: {title} · {artist} [{pos}/{duration}]'"
 Enter
 Sleep 2.5s
 
-Type "clear; goose queue"
+Type "clear; goose radio 'Avraham Fried' && sleep 3 && goose now"
+Enter
+Sleep 8s
+
+Type "clear; goose catalog new mine >/dev/null && goose catalog add-artist mine Matisyahu"
+Enter
+Sleep 4s
+
+Type "goose catalog"
 Enter
 Sleep 2.5s
-
-Type `goose artist '8th Day' --json | jq -r '.albums[:4][] | "\(.year)  \(.title)"'`
-Enter
-Sleep 3s
-
-Type "clear; goose radio 'Avraham Fried' && goose now"
-Enter
-Sleep 6s
 
 Type "clear; goose download '8th Day' 'Inner Flame'"
 Enter
 Sleep 9s
-
-Type "goose history -n 3"
-Enter
-Sleep 3s
 
 Hide
 Type "goose quit-player; clear"
