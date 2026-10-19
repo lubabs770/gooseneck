@@ -8,7 +8,7 @@ import (
 
 func page() *ytm.Artist {
 	return &ytm.Artist{Name: "8th Day",
-		Albums: []ytm.Release{{BrowseID: "A1", Title: "Lucky"}, {BrowseID: "A2", Title: "Stronger Closer"}, {BrowseID: "A3", Title: "Slow Down, Vol. 7"}},
+		Albums:  []ytm.Release{{BrowseID: "A1", Title: "Lucky"}, {BrowseID: "A2", Title: "Stronger Closer"}, {BrowseID: "A3", Title: "Slow Down, Vol. 7"}},
 		Singles: []ytm.Release{{BrowseID: "S1", Title: "Lucky Abba Mashup"}, {BrowseID: "S2", Title: "Tut Altz"}},
 	}
 }
@@ -54,5 +54,29 @@ func TestShuffledKeepsSongs(t *testing.T) {
 	}
 	if len(seen) != 4 {
 		t.Fatal("shuffled lost songs")
+	}
+}
+
+func TestMix(t *testing.T) {
+	song := func(artist, id string) ytm.Song { return ytm.Song{VideoID: id, Artist: artist} }
+	pool := [][]ytm.Song{
+		{song("seed", "s1"), song("seed", "s2"), song("seed", "s3"), song("seed", "s1")},
+		{song("a", "a1"), song("a", "a2")},
+		{song("b", "b1"), song("b", "b2")},
+	}
+	out := mix(pool, 100)
+	if len(out) != 7 {
+		t.Fatalf("mix len = %d, want 7 unique songs", len(out))
+	}
+	if out[0].Artist != "seed" {
+		t.Fatal("mix should open with the seed artist")
+	}
+	for i := 1; i < len(out); i++ {
+		if out[i].VideoID == out[i-1].VideoID {
+			t.Fatal("repeated video")
+		}
+	}
+	if got := mix([][]ytm.Song{{song("x", "1"), song("x", "2"), song("x", "3")}}, 2); len(got) != 2 {
+		t.Fatalf("size cap: %d", len(got))
 	}
 }

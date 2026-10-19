@@ -50,7 +50,7 @@ func (p *libraryPage) filterText() string  { return p.items.filter }
 func (p *libraryPage) setFilter(f string)  { p.items.setFilter(f) }
 func (p *libraryPage) placeholder() string { return "Filter artists…" }
 func (p *libraryPage) hints(a *App) []hint {
-	return []hint{{"enter", "open"}, {"p", "play"}, {"tab", "tag"}, {"v", "view"}}
+	return []hint{{"enter", "open"}, {"p", "play"}, {"m", "radio"}, {"tab", "tag"}, {"v", "view"}}
 }
 
 func (p *libraryPage) update(a *App, msg tea.Msg) tea.Cmd {
@@ -73,6 +73,11 @@ func (p *libraryPage) update(a *App, msg tea.Msg) tea.Cmd {
 			return openArtistEntry(a, p.items)
 		case "p", "s", "a":
 			return playArtistEntry(a, p.items, k)
+		case "m":
+			if e, ok := p.items.selected(); ok {
+				ar := e.data.(catalog.Artist)
+				return a.radio(ar.ID, ar.Name)
+			}
 		}
 	case tea.MouseMsg:
 		scrollMouse(p.items, msg)
@@ -264,7 +269,7 @@ func (p *artistPage) tabLabel() string {
 }
 
 func (p *artistPage) hints(a *App) []hint {
-	return []hint{{"enter", "open"}, {"p", "play"}, {"P", "play all"}, {"S", "shuffle all"}, {"tab", "section"}}
+	return []hint{{"enter", "open"}, {"p", "play"}, {"P", "play all"}, {"m", "radio"}, {"tab", "section"}}
 }
 
 func (p *artistPage) update(a *App, msg tea.Msg) tea.Cmd {
@@ -309,6 +314,8 @@ func (p *artistPage) update(a *App, msg tea.Msg) tea.Cmd {
 			return a.playArtist(p.id, p.name, mpv.Replace, false)
 		case "S":
 			return a.playArtist(p.id, p.name, mpv.Replace, true)
+		case "m":
+			return a.radio(p.id, p.name)
 		case "enter", "p", "a", "A", "s":
 			if c == nil {
 				return nil
@@ -776,7 +783,7 @@ func agoShort(t time.Time) string {
 	d := time.Since(t)
 	switch {
 	case d < time.Minute:
-		return "now"
+		return "just now"
 	case d < time.Hour:
 		return fmt.Sprintf("%dm ago", int(d.Minutes()))
 	case d < 24*time.Hour:

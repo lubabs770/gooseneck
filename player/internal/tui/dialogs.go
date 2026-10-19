@@ -44,6 +44,19 @@ func commands(a *App) []command {
 		{"repeat", "cycle repeat off / all / one", "r", func(a *App) tea.Cmd { cmd, _ := a.transportKey("r"); return cmd }},
 		{"clear", "clear the queue (keeps the current track)", "", ctl(func(p *mpv.Player) (string, error) { return "queue cleared", p.Clear() })},
 		{"stop", "stop playback", "", ctl(func(p *mpv.Player) (string, error) { return "stopped", p.Stop() })},
+		{"radio", "mix of the current artist and related artists", "m", func(a *App) tea.Cmd {
+			id, name := "", ""
+			if ap, ok := a.top().(*artistPage); ok {
+				id, name = ap.id, ap.name
+			} else if a.playerUp && a.now.Track.ArtistID != "" {
+				id, name = a.now.Track.ArtistID, a.now.Track.Artist
+			}
+			if id == "" {
+				a.notify("open an artist (or play something) first", true)
+				return nil
+			}
+			return a.radio(id, name)
+		}},
 		{"random", "play a random popular artist", "", func(a *App) tea.Cmd {
 			tg, _ := catalog.FindTag("famous")
 			list := a.lib.Cat.Filter(tg)
@@ -100,8 +113,9 @@ func pickList(a *App, rows []string, rights []string, cursor, w, h int) string {
 			right = rights[i]
 		}
 		if i == cursor {
-			line := spread(rows[i], right, w-2)
-			out = append(out, fg(t.ink()).Background(t.Primary).Bold(true).Render(" "+padRight(line, w-2)+" "))
+			// paint keeps the highlight under styled spans (swatches, muted text)
+			line := " " + spread(fg(t.ink()).Bold(true).Render(rows[i]), right, w-2) + " "
+			out = append(out, paint(line, t.Primary, w, 1))
 		} else {
 			out = append(out, " "+spread(t.text().Render(rows[i]), t.muted().Render(right), w-2)+" ")
 		}
@@ -266,7 +280,7 @@ var helpSections = []struct {
 	}},
 	{"Play", [][2]string{
 		{"p", "play selection"}, {"a", "add to queue"}, {"A", "play next"},
-		{"s", "shuffle selection"}, {"P S", "play / shuffle whole artist"},
+		{"s", "shuffle selection"}, {"P S", "play / shuffle whole artist"}, {"m", "radio: artist + related"},
 	}},
 	{"Player", [][2]string{
 		{"space", "pause"}, {"n N", "next / previous"}, {"[ ]", "seek ∓10s"},

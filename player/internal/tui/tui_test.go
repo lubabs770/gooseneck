@@ -117,10 +117,4 @@ func TestLogoAndHelpers(t *testing.T) {
 	if initials("8th Day") != "8D" || initials("שלום") != "♪" {
 		t.Fatalf("initials: %q %q", initials("8th Day"), initials("שלום"))
 	}
-	if squareURL("https://yt3.googleusercontent.com/abc=w2880-h1200-p", 320) != "https://yt3.googleusercontent.com/abc=s320-c" {
-		t.Fatal("squareURL google")
-	}
-	if squareURL("https://example.com/a=b", 320) != "https://example.com/a=b" {
-		t.Fatal("squareURL non-google")
-	}
 }

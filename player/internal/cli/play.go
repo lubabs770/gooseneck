@@ -33,6 +33,7 @@ func (a *app) playbackCmds() []*cobra.Command {
 	}
 	return []*cobra.Command{
 		a.playCmd(),
+		a.radioCmd(),
 		a.nowCmd(),
 		a.queueCmd(),
 		simple("pause", "Pause playback", nil, func(l *library.Lib) (string, error) {
@@ -183,7 +184,7 @@ func (a *app) buildPlay(cmd *cobra.Command, l *library.Lib, args []string, top b
 	if len(args) == 1 {
 		if top {
 			req.Songs = page.TopSongs
-			return req, page.Name + " — top songs", nil
+			return req, page.Name + " · top songs", nil
 		}
 		req.Songs, err = l.ArtistTracks(ctx, page)
 		return req, page.Name, err
@@ -198,14 +199,14 @@ func (a *app) buildPlay(cmd *cobra.Command, l *library.Lib, args []string, top b
 	}
 	req.Album = al.Title
 	req.Songs = al.Tracks
-	label := al.Title + " — " + page.Name
+	label := al.Title + " · " + page.Name
 	if len(args) == 3 {
 		i, err := library.ResolveTrack(al.Tracks, args[2])
 		if err != nil {
 			return req, "", usage(err)
 		}
 		req.Songs = al.Tracks[i:]
-		label = al.Tracks[i].Title + " — " + page.Name
+		label = al.Tracks[i].Title + " · " + page.Name
 	}
 	return req, label, nil
 }
@@ -236,7 +237,7 @@ func printNow(p *printer, np library.NowPlaying) {
 	}
 	line := p.S(p.accent, icon+" ") + p.S(p.title, bidi.Vis(title))
 	if t.Artist != "" {
-		line += p.S(p.dim, " — ") + bidi.Vis(t.Artist)
+		line += p.S(p.dim, " · ") + bidi.Vis(t.Artist)
 	}
 	if t.Album != "" && t.Album != t.Title {
 		line += p.S(p.dim, " · "+bidi.Vis(t.Album))
@@ -259,6 +260,58 @@ func printNow(p *printer, np library.NowPlaying) {
 		extras = append(extras, "repeat "+np.Repeat)
 	}
 	p.println("  " + p.bar(frac, w) + " " + ytm.FormatDuration(int(np.Pos)) + p.S(p.dim, " / "+ytm.FormatDuration(int(dur))+"   "+strings.Join(extras, " · ")))
+}
+
+func (a *app) radioCmd() *cobra.Command {
+	var size int
+	var add bool
+	c := &cobra.Command{
+		Use:               "radio <artist>",
+		Aliases:           []string{"mix"},
+		Short:             "Play a mix: the artist plus related artists, shuffled",
+		Example:           "  goose radio \"8th Day\"\n  goose radio fried -n 100 --add",
+		Args:              cobra.MinimumNArgs(1),
+		ValidArgsFunction: a.completeArtist,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			l, err := a.lib()
+			if err != nil {
+				return err
+			}
+			ar, err := l.ResolveArtist(strings.Join(args, " "))
+			if err != nil {
+				return err
+			}
+			page, err := l.Artist(a.ctx(cmd), ar.ID, false)
+			if err != nil {
+				return err
+			}
+			songs, err := l.Radio(a.ctx(cmd), page, size)
+			if err != nil {
+				return err
+			}
+			mode := mpv.Replace
+			if add {
+				mode = mpv.Append
+			}
+			if err := l.Play(library.PlayRequest{Songs: songs, Mode: mode, ArtistID: page.ID, Artist: page.Name, Album: "Radio"}); err != nil {
+				return err
+			}
+			p := a.out(cmd)
+			artists := map[string]bool{}
+			for _, s := range songs {
+				artists[s.Artist] = true
+			}
+			if p.json {
+				return p.JSON(map[string]any{"queued": len(songs), "artists": len(artists), "songs": songs})
+			}
+			p.println(p.S(p.accent, "📻 ") + "Radio: " + p.S(p.title, bidi.Vis(page.Name)) +
+				p.S(p.dim, fmt.Sprintf(" (%d tracks from %d artists)", len(songs), len(artists))))
+			return nil
+		},
+	}
+	c.Flags().IntVarP(&size, "size", "n", 50, "number of tracks")
+	c.Flags().BoolVarP(&add, "add", "a", false, "append to the queue instead of replacing it")
+	return c
 }
 
 func (a *app) nowCmd() *cobra.Command {

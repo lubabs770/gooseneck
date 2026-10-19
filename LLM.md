@@ -26,6 +26,7 @@ internal/ytm             read-only YouTube Music InnerTube client (artist page, 
 internal/mpv             headless mpv daemon over JSON IPC (play/queue/pause/seek/…)
 internal/store           SQLite: response cache (kv), track metadata, play history
 internal/catalog         artists.json load/download, tags, fuzzy search, name resolution
+internal/art             artist/album art download + disk cache (`goose cache warm`)
 internal/config          TOML config + every on-disk path
 internal/bidi            Hebrew (RTL) visual reordering for terminals
 ```
@@ -106,6 +107,16 @@ Runtime deps: `yt-dlp` + `mpv`. `goose doctor` checks everything.
 - **ytm parsing** walks renderer trees defensively (`get`/`str`/`findKey`).
   When YouTube changes shapes, refresh the gzipped fixtures in
   `internal/ytm/testdata/` and fix the parser against them.
+
+## Demo GIFs
+
+`demo/setup.sh` builds goose into `/tmp/goose-demo/bin` and prepares an
+isolated, pre-warmed home there (silent `--ao=null` playback, seeded history);
+`vhs demo/tui.tape` / `vhs demo/cli.tape` render `demo.gif` / `cli.gif` at the
+repo root. Tapes hide their setup and use a bare `$ ` prompt — never show a
+username, hostname, home path or the user's real history in a recording. VHS's
+browser terminal lags on heavy half-block output, so give image-heavy screens a
+few seconds before moving on. Re-render whenever the UI changes visibly.
 
 ## CI & releases
 

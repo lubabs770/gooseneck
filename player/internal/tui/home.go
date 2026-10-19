@@ -133,6 +133,12 @@ func (h *homePage) update(a *App, msg tea.Msg) tea.Cmd {
 					return a.playArtist(ar.ID, ar.Name, mpv.Replace, true)
 				}
 			}
+		case "m":
+			if e, ok := h.results.selected(); ok {
+				if ar, ok := e.data.(catalog.Artist); ok {
+					return a.radio(ar.ID, ar.Name)
+				}
+			}
 		}
 	case tea.MouseMsg:
 		scrollMouse(h.results, msg)

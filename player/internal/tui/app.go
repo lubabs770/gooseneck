@@ -83,7 +83,7 @@ type App struct {
 func Run(l *library.Lib, opts Options) error {
 	out := &syncWriter{f: os.Stdout}
 	a := newApp(l, opts, out)
-	p := tea.NewProgram(a, tea.WithAltScreen(), tea.WithMouseCellMotion(), tea.WithOutput(out))
+	p := tea.NewProgram(a, tea.WithAltScreen(), tea.WithMouseCellMotion(), tea.WithOutput(out), tea.WithFPS(30))
 	_, err := p.Run()
 	if a.img.kitty {
 		fmt.Fprint(os.Stdout, kittyDeleteAll())
@@ -138,9 +138,10 @@ func (a *App) push(p page) {
 }
 
 func (a *App) pop() {
-	if len(a.stack) > 1 {
-		a.stack = a.stack[:len(a.stack)-1]
+	if len(a.stack) == 1 {
+		return // already home
 	}
+	a.stack = a.stack[:len(a.stack)-1]
 	a.blurSearch()
 	if _, ok := a.top().(*homePage); ok {
 		a.focusSearch()
@@ -296,6 +297,28 @@ func (a *App) playArtist(id, name string, mode mpv.Mode, shuffle bool) tea.Cmd {
 			verb = "+ queued"
 		}
 		return fmt.Sprintf("%s %s (%d tracks)", verb, page.Name, len(songs)), nil
+	})
+}
+
+// radio starts a mix seeded by an artist.
+func (a *App) radio(id, name string) tea.Cmd {
+	l := a.lib
+	a.notify("tuning radio: "+name+"…", false)
+	return a.job(func() (string, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		defer cancel()
+		page, err := l.Artist(ctx, id, false)
+		if err != nil {
+			return "", err
+		}
+		songs, err := l.Radio(ctx, page, 50)
+		if err != nil {
+			return "", err
+		}
+		if err := l.Play(library.PlayRequest{Songs: songs, ArtistID: page.ID, Artist: page.Name, Album: "Radio"}); err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("📻 radio: %s (%d tracks)", page.Name, len(songs)), nil
 	})
 }
 
@@ -495,7 +518,11 @@ func (a *App) searchKey(msg tea.KeyMsg) tea.Cmd {
 				return nil
 			}
 		}
-		return a.top().update(a, msg)
+		cmd := a.top().update(a, msg)
+		if f, ok := a.top().(filterable); ok && f.filterText() != a.input.Value() {
+			f.setFilter(a.input.Value()) // tab may have switched to another section
+		}
+		return cmd
 	}
 	var cmd tea.Cmd
 	a.input, cmd = a.input.Update(msg)

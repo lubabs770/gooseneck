@@ -2,24 +2,17 @@ package tui
 
 import (
 	"bytes"
-	"crypto/sha1"
-	"encoding/hex"
 	"fmt"
 	"image"
 	"image/draw"
-	_ "image/gif" // decoders
-	_ "image/jpeg"
 	"image/png"
 	"io"
-	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/lubabs770/gooseneck/player/internal/config"
+	"github.com/lubabs770/gooseneck/player/internal/art"
 )
 
 // images prepares artist/album art for display at a given cell size. Pages ask
@@ -182,7 +175,7 @@ func (m *images) clear() {
 
 func fetchImage(r imgReq, kitty bool) tea.Cmd {
 	return func() tea.Msg {
-		img, err := loadImage(r.url)
+		img, err := art.Load(r.url)
 		if err != nil {
 			return imageReady{key: r.key, err: err}
 		}
@@ -195,74 +188,6 @@ func fetchImage(r imgReq, kitty bool) tea.Cmd {
 		}
 		return imageReady{key: r.key, art: halfBlock(img, r.w, r.h), w: r.w, h: r.h}
 	}
-}
-
-// ---- download + decode ---------------------------------------------------------
-
-const fetchPx = 320
-
-// squareURL rewrites a googleusercontent/ggpht URL to request a square,
-// center-cropped version (YouTube bakes sizing into the suffix after '=').
-func squareURL(url string, px int) string {
-	i := strings.LastIndexByte(url, '=')
-	if i < 0 {
-		return url
-	}
-	base := url[:i]
-	if !strings.Contains(base, "googleusercontent.com") && !strings.Contains(base, "ggpht.com") {
-		return url
-	}
-	return fmt.Sprintf("%s=s%d-c", base, px)
-}
-
-func imagePath(url string) string {
-	sum := sha1.Sum([]byte(url))
-	return filepath.Join(config.ThumbDir(), hex.EncodeToString(sum[:10])+".img")
-}
-
-func loadImage(url string) (image.Image, error) {
-	url = squareURL(url, fetchPx)
-	path := imagePath(url)
-	if _, err := os.Stat(path); err != nil {
-		if err := download(url, path); err != nil {
-			return nil, err
-		}
-	}
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	img, _, err := image.Decode(f)
-	if err != nil {
-		_ = os.Remove(path) // corrupt cache entry; refetch next time
-	}
-	return img, err
-}
-
-var httpClient = &http.Client{Timeout: 15 * time.Second}
-
-func download(url, dest string) error {
-	resp, err := httpClient.Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("image: HTTP %d", resp.StatusCode)
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-		return err
-	}
-	tmp := dest + ".tmp"
-	if err := os.WriteFile(tmp, body, 0o644); err != nil {
-		return err
-	}
-	return os.Rename(tmp, dest)
 }
 
 // cropToAspect center-crops img to the pixel aspect of a cols×rows cell box

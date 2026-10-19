@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
+	"github.com/lubabs770/gooseneck/player/internal/art"
 	"github.com/lubabs770/gooseneck/player/internal/catalog"
 	"github.com/lubabs770/gooseneck/player/internal/config"
 	"github.com/lubabs770/gooseneck/player/internal/tui"
@@ -57,9 +60,9 @@ func (a *app) historyCmd() *cobra.Command {
 				what := e.Artist
 				switch {
 				case e.Track != "":
-					what = e.Track + p.S(p.dim, " — "+e.Artist)
+					what = e.Track + p.S(p.dim, " · "+e.Artist)
 				case e.Album != "":
-					what = e.Album + p.S(p.dim, " — "+e.Artist)
+					what = e.Album + p.S(p.dim, " · "+e.Artist)
 				}
 				right := ago(e.At)
 				if e.Count > 1 {
@@ -199,8 +202,95 @@ func (a *app) cacheCmd() *cobra.Command {
 		},
 	}
 	clear.Flags().BoolVar(&images, "images", false, "also delete downloaded artist/album art")
-	c.AddCommand(clear)
+	c.AddCommand(clear, a.warmCmd())
 	return c
+}
+
+func (a *app) warmCmd() *cobra.Command {
+	var tag string
+	var artists []string
+	c := &cobra.Command{
+		Use:   "warm",
+		Short: "Prefetch artist pictures (and, with --artist, their pages and album art)",
+		Example: "  goose cache warm --tag famous\n" +
+			"  goose cache warm --artist \"8th Day\" --artist fried",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			l, err := a.lib()
+			if err != nil {
+				return err
+			}
+			tg, err := catalog.FindTag(tag)
+			if err != nil {
+				return usage(err)
+			}
+			p := a.out(cmd)
+			var urls []string
+			pages := 0
+			if len(artists) > 0 {
+				for _, q := range artists {
+					ar, err := l.ResolveArtist(q)
+					if err != nil {
+						return err
+					}
+					page, err := l.Artist(cmd.Context(), ar.ID, false)
+					if err != nil {
+						return err
+					}
+					pages++
+					urls = append(urls, ar.Thumbnail, page.Thumb)
+					for _, r := range page.Releases() {
+						urls = append(urls, r.Thumb)
+						if _, err := l.Album(cmd.Context(), r.BrowseID, false); err == nil {
+							pages++
+						}
+					}
+					for _, r := range page.Related {
+						urls = append(urls, r.Thumb)
+					}
+				}
+			} else {
+				for _, ar := range l.Cat.Filter(tg) {
+					urls = append(urls, ar.Thumbnail)
+				}
+			}
+			fetched, failed := art.Warm(urls, func(done, total int) {
+				if p.tty && !p.json {
+					p.printf("\r\x1b[2K%s warming %d/%d", p.S(p.accent, "⠿"), done, total)
+				}
+			})
+			if p.tty && !p.json {
+				p.printf("\r\x1b[2K")
+			}
+			if p.json {
+				return p.JSON(map[string]int{"images": fetched, "failed": failed, "pages": pages})
+			}
+			msg := fmt.Sprintf("%d new images", fetched)
+			if pages > 0 {
+				msg += fmt.Sprintf(", %d pages cached", pages)
+			}
+			if failed > 0 {
+				msg += p.S(p.warn, fmt.Sprintf(" (%d failed)", failed))
+			}
+			p.println(p.S(p.ok, "✓ ") + msg)
+			return nil
+		},
+	}
+	tagFlag(c, &tag)
+	c.Flags().StringArrayVar(&artists, "artist", nil, "warm one artist's page, albums and art (repeatable)")
+	c.RegisterFlagCompletionFunc("artist", a.completeArtist)
+	return c
+}
+
+// mprisInstalled looks for the mpv-mpris plugin where mpv auto-loads scripts.
+func mprisInstalled() bool {
+	home, _ := os.UserHomeDir()
+	for _, dir := range []string{filepath.Join(home, ".config", "mpv", "scripts"), "/etc/mpv/scripts", "/usr/share/mpv/scripts", "/usr/lib/mpv-mpris"} {
+		if _, err := os.Stat(filepath.Join(dir, "mpris.so")); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 func dirStats(dir string) (n int, size int64) {
@@ -270,7 +360,7 @@ func (a *app) configCmd() *cobra.Command {
 		&cobra.Command{
 			Use: "set <key> <value>", Short: "Change one setting", Args: cobra.ExactArgs(2), ValidArgsFunction: keyComp,
 			DisableFlagParsing: true, // values like "--no-video" are data, not flags
-			Example: "  goose config set theme tokyonight\n  goose config set player_args '--no-video --volume-max=150'",
+			Example:            "  goose config set theme tokyonight\n  goose config set player_args '--no-video --volume-max=150'",
 			RunE: func(cmd *cobra.Command, args []string) error {
 				if a.cfgErr != nil {
 					return a.cfgErr
@@ -367,6 +457,13 @@ func (a *app) doctorCmd() *cobra.Command {
 					add("youtube music", false, err.Error(), "check your network; cached pages still work offline")
 				} else {
 					add("youtube music", true, fmt.Sprintf("reachable (%dms)", time.Since(start).Milliseconds()), "")
+				}
+			}
+			if runtime.GOOS == "linux" {
+				if mprisInstalled() {
+					add("media keys", true, "mpv-mpris found (desktop media controls work)", "")
+				} else {
+					add("media keys", true, "optional: install mpv-mpris for media keys and desktop widgets", "")
 				}
 			}
 			img := "half-block art (any truecolor terminal)"
