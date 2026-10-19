@@ -332,7 +332,7 @@ func (a *app) configCmd() *cobra.Command {
 				if err := a.cfg.Set(args[0], args[1]); err != nil {
 					return usage(err)
 				}
-				if err := config.Save(a.cfg); err != nil {
+				if err := config.Update(func(c *config.Config) error { return c.Set(args[0], args[1]) }); err != nil {
 					return err
 				}
 				p := a.out(cmd)

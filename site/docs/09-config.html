@@ -7,6 +7,8 @@ goose config set volume 60
 goose config path
 goose config edit               # opens $EDITOR</pre>
 
+<p><code>config.toml</code> holds your defaults. Toggles in the TUI (the theme picker, sidebar, art, grid/list, key hints) last until you quit and never rewrite it. The one exception is <code>/scrobble</code>, which is saved because the background scrobbler reads the file. Commands that do save (<code>goose config set</code>, <code>goose catalog</code>, <code>goose scrobble</code>) change only their own keys.</p>
+
 <h2>config.toml</h2>
 <pre data-lang="toml" data-title="~/.config/gooseneck/config.toml">theme        = "auto"         # auto = Omarchy's theme if installed, else opencode
 view         = "grid"         # grid | list

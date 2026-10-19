@@ -124,7 +124,7 @@ offline are queued and sent later.`,
 				return err
 			}
 			a.cfg.ListenBrainzToken = token
-			if err := config.Save(a.cfg); err != nil {
+			if err := config.Update(func(c *config.Config) error { c.ListenBrainzToken = token; return nil }); err != nil {
 				return err
 			}
 			p := a.out(cmd)
@@ -176,7 +176,10 @@ They're saved to the config (mode 0600), so later logins don't need them.`,
 				return fmt.Errorf("%w (did you approve it in the browser?)", err)
 			}
 			a.cfg.LastfmKey, a.cfg.LastfmSecret, a.cfg.LastfmSession, a.cfg.LastfmUser = key, secret, session, user
-			if err := config.Save(a.cfg); err != nil {
+			if err := config.Update(func(c *config.Config) error {
+				c.LastfmKey, c.LastfmSecret, c.LastfmSession, c.LastfmUser = key, secret, session, user
+				return nil
+			}); err != nil {
 				return err
 			}
 			p := a.out(cmd)
@@ -194,15 +197,17 @@ They're saved to the config (mode 0600), so later logins don't need them.`,
 		Args:      cobra.ExactArgs(1),
 		ValidArgs: []string{"listenbrainz", "lastfm"},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var forget func(*config.Config)
 			switch args[0] {
 			case "listenbrainz":
-				a.cfg.ListenBrainzToken = ""
+				forget = func(c *config.Config) { c.ListenBrainzToken = "" }
 			case "lastfm", "last.fm":
-				a.cfg.LastfmSession, a.cfg.LastfmUser = "", ""
+				forget = func(c *config.Config) { c.LastfmSession, c.LastfmUser = "", "" }
 			default:
 				return usage(fmt.Errorf("unknown service %q", args[0]))
 			}
-			if err := config.Save(a.cfg); err != nil {
+			forget(&a.cfg)
+			if err := config.Update(func(c *config.Config) error { forget(c); return nil }); err != nil {
 				return err
 			}
 			p := a.out(cmd)
@@ -216,7 +221,7 @@ They're saved to the config (mode 0600), so later logins don't need them.`,
 			Use: name, Short: "Turn scrobbling " + name, Args: cobra.NoArgs,
 			RunE: func(cmd *cobra.Command, args []string) error {
 				a.cfg.Scrobble = config.BoolPtr(on)
-				if err := config.Save(a.cfg); err != nil {
+				if err := config.Update(func(c *config.Config) error { c.Scrobble = config.BoolPtr(on); return nil }); err != nil {
 					return err
 				}
 				p := a.out(cmd)

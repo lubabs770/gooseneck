@@ -128,15 +128,15 @@ func commands(a *App) []command {
 			}
 			return nil
 		}},
-		{"scrobble", "turn scrobbling on/off (set up with `goose scrobble login`)", "", func(a *App) tea.Cmd {
+		// Unlike the view toggles this is saved: the scrobbler is a separate
+		// background process that only learns about it from the config file.
+		{"scrobble", "turn scrobbling on/off, saved (set up with `goose scrobble login`)", "", func(a *App) tea.Cmd {
 			on := !config.On(a.lib.Cfg.Scrobble, true)
-			cfg := a.lib.Cfg
-			cfg.Scrobble = config.BoolPtr(on)
-			if err := config.Save(cfg); err != nil {
+			if err := config.Update(func(c *config.Config) error { c.Scrobble = config.BoolPtr(on); return nil }); err != nil {
 				a.notify(err.Error(), true)
 				return nil
 			}
-			a.lib.Cfg.Scrobble = cfg.Scrobble
+			a.lib.Cfg.Scrobble = config.BoolPtr(on)
 			if !on {
 				a.notify("scrobbling off", false)
 				return nil
@@ -149,11 +149,7 @@ func commands(a *App) []command {
 			a.notify("scrobbling on", false)
 			return nil
 		}},
-		{"hints", "toggle key hints in the status bar", "", func(a *App) tea.Cmd {
-			on := !config.On(a.lib.Cfg.ShowHelp, true)
-			a.lib.Cfg.ShowHelp = config.BoolPtr(on)
-			return nil
-		}},
+		{"hints", "toggle key hints in the status bar", "", func(a *App) tea.Cmd { a.showHelp = !a.showHelp; return nil }},
 		{"help", "keyboard shortcuts", "?", func(a *App) tea.Cmd { a.dialog = newHelp(a); return nil }},
 		{"quit", "exit (music keeps playing)", "q", func(a *App) tea.Cmd { return tea.Quit }},
 		{"quit-and-stop", "exit and stop the music", "", func(a *App) tea.Cmd {
@@ -304,14 +300,8 @@ func (tp *themePicker) update(a *App, msg tea.KeyMsg) tea.Cmd {
 		name := tp.names[tp.cursor]
 		a.setTheme(name)
 		a.dialog = nil
-		cfg := a.lib.Cfg
-		cfg.Theme = name
-		if err := config.Save(cfg); err != nil {
-			a.notify("couldn't save theme: "+err.Error(), true)
-		} else {
-			a.lib.Cfg.Theme = name
-			a.notify("theme: "+name, false)
-		}
+		// Session only: config.toml stays the default for the next launch.
+		a.notify("theme: "+name+" (this session; keep it with `goose config set theme "+name+"`)", false)
 	}
 	return nil
 }

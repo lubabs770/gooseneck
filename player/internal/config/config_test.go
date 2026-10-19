@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/BurntSushi/toml"
 )
 
 func TestDefault(t *testing.T) {
@@ -143,5 +145,44 @@ func TestCatalogSourcesRoundTrip(t *testing.T) {
 	}
 	if err := c.Set("catalog", "x"); err == nil {
 		t.Fatal("setting catalog directly should fail")
+	}
+}
+
+// Update must change only the given key: not write back $APP, backfilled
+// defaults, or anything else the running process holds in memory.
+func TestUpdateChangesOnlyOneKey(t *testing.T) {
+	t.Setenv("GOOSENECK_HOME", t.TempDir())
+	t.Setenv("APP", "vlc")
+	if err := os.MkdirAll(Dir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	orig := "theme = \"gruvbvox\"\nshow_help = false\nview = \"bogus\"\n"
+	if err := os.WriteFile(Path(), []byte(orig), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	mem, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mem.ShowHelp = BoolPtr(true) // a session-only change
+
+	if err := Update(func(c *Config) error { return c.Set("volume", "55") }); err != nil {
+		t.Fatal(err)
+	}
+	var disk Config
+	if _, err := toml.DecodeFile(Path(), &disk); err != nil {
+		t.Fatal(err)
+	}
+	if disk.Volume != 55 {
+		t.Errorf("volume = %d, want 55", disk.Volume)
+	}
+	if disk.Player == "vlc" {
+		t.Error("$APP override was written to the file")
+	}
+	if On(disk.ShowHelp, true) {
+		t.Error("show_help changed on disk")
+	}
+	if disk.Theme != "gruvbvox" || disk.View != "bogus" {
+		t.Errorf("other keys rewritten: theme=%q view=%q", disk.Theme, disk.View)
 	}
 }

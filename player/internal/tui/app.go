@@ -69,6 +69,7 @@ type App struct {
 	img        *images
 	showImages bool
 	sidebar    bool
+	showHelp   bool // key hints in the status bar
 
 	stack     []page
 	dialog    dialog
@@ -129,6 +130,7 @@ func newApp(l *library.Lib, opts Options, out *syncWriter) *App {
 		img:        newImages(config.On(l.Cfg.Thumbnails, true), out),
 		showImages: config.On(l.Cfg.Thumbnails, true),
 		sidebar:    config.On(l.Cfg.Sidebar, true),
+		showHelp:   config.On(l.Cfg.ShowHelp, true),
 	}
 	a.omarchySig = omarchySignature()
 	a.input = textinput.New()
@@ -748,7 +750,7 @@ func (a *App) statusBar() string {
 			icon, st = "✗ ", fg(t.Error)
 		}
 		right = st.Render(icon) + t.text().Render(a.toast)
-	case config.On(a.lib.Cfg.ShowHelp, true):
+	case a.showHelp:
 		hs := a.top().hints(a)
 		hs = append(hs, hint{"ctrl+p", "commands"})
 		right = a.renderHints(hs)

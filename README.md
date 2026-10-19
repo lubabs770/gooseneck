@@ -82,8 +82,8 @@ theme automatically: the `omarchy` theme reads the current Omarchy theme's
 Built-in palettes: `opencode`, `ayu`, `catppuccin`, `dracula`, `everforest`,
 `gruvbox`, `kanagawa`, `latte`, `matrix`, `mono`, `nord`, `onedark`,
 `rosepine`, `tokyonight`, and `system` (your terminal's own colours). Press `t`
-for a live-preview picker, or `goose config set theme <name>`; `auto` goes back
-to following Omarchy. The CLI's colours follow the same theme.
+for a live-preview picker (this session only), or `goose config set theme <name>`
+to keep one; `auto` goes back to following Omarchy. The CLI's colours follow the same theme.
 
 ## The CLI
 
@@ -195,7 +195,10 @@ and masks in `goose config` output.
 ## Config
 
 `~/.config/gooseneck/config.toml` is written on first run. Edit it, or use
-`goose config set <key> <value>`:
+`goose config set <key> <value>`. The file holds your defaults: toggles in the
+TUI (theme picker, sidebar, art, grid/list, hints) last until you quit and
+never rewrite it. `/scrobble` is the exception, since the background
+scrobbler reads the file.
 
 ```toml
 theme        = "auto"         # auto = Omarchy's theme if installed, else opencode

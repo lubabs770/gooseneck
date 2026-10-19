@@ -183,6 +183,11 @@ Runtime deps: `yt-dlp` + `mpv`. `goose doctor` checks everything.
   newer stdlib APIs (e.g. `testing.T.Chdir`).
 - **Don't build all targets locally** — CI cross-compiles.
 - **RTL:** terminals don't do BiDi. Pass display strings through `bidi.Vis()`.
+- **config.toml = defaults.** TUI toggles (theme picker, sidebar, art, view,
+  hints) are session-only App state; never write them back. Anything that does
+  persist goes through `config.Update` (re-reads the file, changes one key),
+  never `config.Save` of an in-memory Config (that leaks session state, `$APP`
+  and backfilled values into the file).
 - **Config is forward-compatible:** new fields need a backfill in
   `config.normalize`; `*bool` fields are tri-state (nil → default).
 - **CLI args that start with `-`** (`goose seek -10`, `goose config set player_args --no-video`)

@@ -230,7 +230,25 @@ func normalize(cfg Config) Config {
 	return cfg
 }
 
-// Save writes cfg to Path(), creating the directory.
+// Update changes the config file on disk: it re-reads the file, applies fn and
+// saves. Callers use it instead of saving their in-memory copy, which may hold
+// session-only changes, $APP overrides or backfilled values that don't belong
+// in the file. Only what fn touches changes.
+func Update(fn func(*Config) error) error {
+	cfg := Default()
+	if _, err := os.Stat(Path()); err == nil {
+		if _, err := toml.DecodeFile(Path(), &cfg); err != nil {
+			return fmt.Errorf("%s: %w", Path(), err)
+		}
+	}
+	if err := fn(&cfg); err != nil {
+		return err
+	}
+	return Save(cfg)
+}
+
+// Save writes cfg to Path(), creating the directory. It overwrites the whole
+// file; to change settings, prefer Update.
 func Save(cfg Config) error {
 	if err := os.MkdirAll(Dir(), 0o755); err != nil {
 		return err
@@ -363,7 +381,10 @@ func (c *Config) Set(key, value string) error {
 	default:
 		return fmt.Errorf("cannot set %s", key)
 	}
-	*c = normalize(*c)
+	// Clamp / backfill only this key; leave the others exactly as they are.
+	n := normalize(*c)
+	nf, _ := field(&n, key)
+	f.Set(nf)
 	return nil
 }
 

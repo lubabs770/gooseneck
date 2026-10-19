@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/lubabs770/gooseneck/player/internal/catalog"
@@ -127,7 +128,10 @@ personal list, or someone else's published artists.json.
 			}
 			src := a.cfg.Catalogs[i]
 			a.cfg.Catalogs = append(a.cfg.Catalogs[:i], a.cfg.Catalogs[i+1:]...)
-			if err := config.Save(a.cfg); err != nil {
+			if err := config.Update(func(c *config.Config) error {
+				c.Catalogs = slices.DeleteFunc(c.Catalogs, func(s config.CatalogSource) bool { return s.Name == src.Name })
+				return nil
+			}); err != nil {
 				return err
 			}
 			msg := "removed catalog " + src.Name
@@ -353,7 +357,7 @@ func (a *app) editable(name string) (config.CatalogSource, error) {
 
 func (a *app) saveCatalog(cmd *cobra.Command, src config.CatalogSource, msg string) error {
 	a.cfg.Catalogs = append(a.cfg.Catalogs, src)
-	if err := config.Save(a.cfg); err != nil {
+	if err := config.Update(func(c *config.Config) error { c.Catalogs = append(c.Catalogs, src); return nil }); err != nil {
 		return err
 	}
 	p := a.out(cmd)
