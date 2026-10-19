@@ -136,7 +136,7 @@ Add --json to any listing for machine-readable output.`,
 		root.AddCommand(c)
 	}
 	for _, c := range []*cobra.Command{a.tuiCmd(), a.scrobbleCmd(), a.scrobblesCmd(), a.historyCmd(), a.topCmd(), a.catalogCmd(),
-		a.cacheCmd(), a.configCmd(), a.doctorCmd(), a.versionCmd()} {
+		a.cacheCmd(), a.configCmd(), a.doctorCmd(), a.upgradeCmd(), a.versionCmd()} {
 		c.GroupID = "more"
 		root.AddCommand(c)
 	}

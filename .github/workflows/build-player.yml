@@ -84,6 +84,11 @@ jobs:
           path: dist
           merge-multiple: true
 
+      # `goose upgrade` refuses a release without this file.
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum gooseneck-player-* > checksums.txt
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:

@@ -48,7 +48,7 @@ goose completion bash > ~/.local/share/bash-completion/completions/goose
 goose completion fish > ~/.config/fish/completions/goose.fish</pre>
 
 <h2>Updating &amp; uninstalling</h2>
-<p>Re-run the installer to update. To remove gooseneck, delete the two binaries and, if you like, its data:</p>
+<p>Run <code>goose upgrade</code> to update to the latest release (<code>goose upgrade --check</code> only tells you whether there is one). It verifies the download against the release checksums and test-runs it before replacing anything; re-running the installer works too. To remove gooseneck, delete the two binaries and, if you like, its data:</p>
 <pre data-lang="sh">goose quit-player
 rm ~/.local/bin/goose ~/.local/bin/gooseneck-player
 rm -r ~/.config/gooseneck      # config, cache, history, scrobbles</pre>

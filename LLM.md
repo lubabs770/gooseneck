@@ -29,6 +29,7 @@ internal/catalog         artists.json load/download, tags, fuzzy search, name re
 internal/art             artist/album art download + disk cache (`goose cache warm`)
 internal/config          TOML config + every on-disk path
 internal/bidi            Hebrew (RTL) visual reordering for terminals
+internal/selfupdate      `goose upgrade`: GitHub release lookup, checksum check, atomic binary swap
 ```
 
 **Rule: every TUI action must be reachable from the CLI.** Both call
@@ -208,5 +209,7 @@ few seconds before moving on. Re-render whenever the UI changes visibly.
   `git pull --rebase` before pushing).
 - `build-player.yml` — vet + test, then cross-compiles 6 targets on changes
   under `player/**`; a `v*` tag publishes a release. Version is stamped via
-  `-X main.version`. Keep large assets (gif/png) out of `player/` so they don't
+  `-X main.version`. The release job also publishes `checksums.txt`;
+  `goose upgrade` refuses releases without it (so v0.5.0 and older can't be
+  upgraded *to*). `GOOSENECK_RELEASES_API` points it at a fake server. Keep large assets (gif/png) out of `player/` so they don't
   trip the path filter.

@@ -40,7 +40,8 @@ Installs **`gooseneck-player`** and the short alias **`goose`** to
 grab the `.exe` from the [releases page](https://github.com/lubabs770/gooseneck/releases).
 
 Needs **[mpv](https://mpv.io)** and **[yt-dlp](https://github.com/yt-dlp/yt-dlp)**.
-Run `goose doctor` to check everything.
+Run `goose doctor` to check everything, and `goose upgrade` to update to the
+latest release later.
 
 ## The TUI
 
@@ -107,6 +108,7 @@ goose download fried --top                # …or an artist's top songs
 goose downloads | downloads rm "8th Day" lucky
 goose history | top | tags | artists --tag israeli
 goose catalog update | cache warm --tag famous | doctor
+goose upgrade | upgrade --check            # update goose itself
 goose config set theme tokyonight
 ```
 
