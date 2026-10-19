@@ -1,0 +1,82 @@
+<!-- title: CLI reference -->
+<!-- group: Using gooseneck -->
+<!-- desc: Every TUI action is a goose command. Fuzzy names work everywhere, and every listing takes --json. -->
+<img class="shot" src="../../cli.gif" alt="The goose CLI" loading="lazy">
+
+<p><code>goose</code> and <code>gooseneck-player</code> are the same program. With no arguments in a terminal it opens the TUI; with a command it does that one thing and exits. Artist, album and track arguments are <strong>fuzzy</strong>: a fragment (<code>fried</code>), a full title, or a number from a previous listing all work.</p>
+
+<h2>Browse</h2>
+<pre data-lang="sh">goose search fried                  # fuzzy artist search (--tag chasidish, -n 5)
+goose artist "8th Day"              # albums, singles, top songs, related
+goose album "8th Day" lucky         # tracklist (title, fragment, or number)
+goose artists --tag israeli         # every artist, one per line when piped
+goose tags                          # tags with artist counts</pre>
+
+<h2>Play</h2>
+<pre data-lang="sh">goose play "8th Day" lucky          # play an album
+goose play "8th Day" lucky 3        # …starting from track 3
+goose play fried                    # everything by an artist, in order
+goose play fried --shuffle          # …shuffled
+goose play "8th Day" --top          # just their top songs
+goose play https://youtu.be/&lt;id&gt;    # any single video</pre>
+<p>By default the queue is <strong>replaced</strong>. <code>--add</code> (<code>-a</code>) appends and <code>--next</code> (<code>-N</code>) inserts after the current track. <code>p</code> is an alias for <code>play</code>.</p>
+
+<h2>Control</h2>
+<table>
+  <tr><th>Command</th><th>Does</th></tr>
+  <tr><td><code>goose now</code></td><td>What's playing. <code>--watch</code> refreshes every second; <code>--format</code> for status bars. Aliases <code>status</code>, <code>np</code>.</td></tr>
+  <tr><td><code>goose pause</code> · <code>resume</code> · <code>toggle</code></td><td>Pause control</td></tr>
+  <tr><td><code>goose next</code> · <code>prev</code></td><td>Skip (prev restarts the track if you're more than 3s in)</td></tr>
+  <tr><td><code>goose seek +30</code> · <code>seek 1:15</code></td><td>Relative or absolute seek</td></tr>
+  <tr><td><code>goose vol</code> · <code>vol 60</code> · <code>vol -10</code></td><td>Show or change volume (0–130)</td></tr>
+  <tr><td><code>goose repeat all|one|off</code></td><td>Repeat mode</td></tr>
+  <tr><td><code>goose shuffle</code></td><td>Shuffle the current queue</td></tr>
+  <tr><td><code>goose queue</code></td><td>Show the queue; <code>queue jump 4</code>, <code>queue rm 2</code>, <code>queue clear</code></td></tr>
+  <tr><td><code>goose stop</code></td><td>Stop and clear the queue</td></tr>
+  <tr><td><code>goose quit-player</code></td><td>Shut down the background player</td></tr>
+</table>
+
+<h2>Radio, downloads, history</h2>
+<pre data-lang="sh">goose radio "8th Day"               # endless radio (see Radio)
+goose radio stop
+goose download "8th Day" lucky      # save for offline (see Downloads)
+goose downloads
+goose history                       # recently played (-n 50)
+goose top                           # most played artists
+goose scrobbles top artist -s month # from your listening log</pre>
+
+<h2>Housekeeping</h2>
+<pre data-lang="sh">goose doctor                        # check dependencies and connectivity
+goose catalog update                # refresh the catalog(s)
+goose cache                         # cache info; cache clear, cache warm
+goose config set theme tokyonight   # config get/set/path/edit
+goose version</pre>
+
+<h2>Recipes</h2>
+<h3>Status bar module</h3>
+<p>Empty output when nothing is playing, so it hides itself in waybar, polybar, tmux and friends.</p>
+<pre data-lang="sh">goose now --format '{title} — {artist}'
+# fields: {title} {artist} {album} {pos} {duration} {state} {volume} {index} {count}</pre>
+
+<h3>Pick an artist with fzf</h3>
+<pre data-lang="sh">goose artists | fzf | xargs -I{} goose play {}</pre>
+
+<h3>Media keys / window-manager bindings</h3>
+<pre data-lang="sh">goose toggle     # play/pause
+goose next
+goose prev</pre>
+<p>With <a href="https://github.com/hoyon/mpv-mpris">mpv-mpris</a> installed the player also shows up in <code>playerctl</code> and your desktop's media controls automatically.</p>
+
+<h3>JSON</h3>
+<pre data-lang="sh"># latest album of an artist
+goose artist "Avraham Fried" --json | jq -r '.albums[0].title'
+# what's playing, as JSON
+goose now --json</pre>
+
+<h2>Global flags</h2>
+<table>
+  <tr><th>Flag</th><th>Does</th></tr>
+  <tr><td><code>--json</code></td><td>Machine-readable output for any listing</td></tr>
+  <tr><td><code>--no-color</code></td><td>Plain output (also <code>NO_COLOR=1</code>)</td></tr>
+  <tr><td><code>-h</code>, <code>--help</code></td><td>Help for any command, e.g. <code>goose play --help</code></td></tr>
+</table>

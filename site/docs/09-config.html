@@ -1,0 +1,49 @@
+<!-- title: Configuration -->
+<!-- group: Reference -->
+<!-- desc: One TOML file, written on first run. Edit it by hand or with goose config set. -->
+<pre data-lang="sh">goose config                    # show everything (secrets masked)
+goose config get theme
+goose config set volume 60
+goose config path
+goose config edit               # opens $EDITOR</pre>
+
+<h2>config.toml</h2>
+<pre data-lang="toml" data-title="~/.config/gooseneck/config.toml">theme        = "auto"         # auto = Omarchy's theme if installed, else opencode
+view         = "grid"         # grid | list
+thumbnails   = true           # artist / album art
+thumb_height = 0              # art height in rows; 0 = auto
+sidebar      = true           # now-playing sidebar on wide terminals
+show_help    = true           # key hints in the status bar
+volume       = 80             # starting volume
+player       = "mpv"          # other players work fire-and-forget ($APP overrides)
+player_args  = ["--no-video"]
+local_scrobble = true         # record listens in scrobble_db
+scrobble_db  = ""             # "" = ~/.config/gooseneck/scrobbles.db
+bin_dir      = ""             # directory holding yt-dlp; "" = $PATH
+download_dir = ""             # "" = ~/Music/gooseneck/&lt;Artist&gt;/&lt;Album&gt;/
+artists_json = ""             # use your own catalog file
+artists_url  = "https://skmusic.shalomkarr.workers.dev/data/artists.json"
+
+[[catalog]]                   # extra catalogs (managed by `goose catalog`)
+name = "mine"
+path = "~/.config/gooseneck/catalogs/mine.json"</pre>
+
+<h2>Environment variables</h2>
+<table>
+  <tr><th>Variable</th><th>Does</th></tr>
+  <tr><td><code>GOOSENECK_HOME</code></td><td>Moves config, cache, downloads and the player socket into one directory. Handy for testing.</td></tr>
+  <tr><td><code>GOOSENECK_IMAGES</code></td><td><code>kitty</code>, <code>halfblock</code> or <code>off</code>: force an image mode</td></tr>
+  <tr><td><code>NO_COLOR</code></td><td>Plain CLI output</td></tr>
+  <tr><td><code>EDITOR</code></td><td>Used by <code>goose config edit</code></td></tr>
+</table>
+
+<h2>Files</h2>
+<table>
+  <tr><th>Path</th><th>What</th></tr>
+  <tr><td><code>~/.config/gooseneck/config.toml</code></td><td>Settings (mode 0600)</td></tr>
+  <tr><td><code>~/.config/gooseneck/cache.db</code></td><td>Cached artist/album pages, track info, play history</td></tr>
+  <tr><td><code>~/.config/gooseneck/scrobbles.db</code></td><td>Your local listening log</td></tr>
+  <tr><td><code>~/.config/gooseneck/catalogs/</code></td><td>Personal and followed catalogs</td></tr>
+  <tr><td><code>~/Music/gooseneck/</code></td><td>Downloads</td></tr>
+  <tr><td><code>$XDG_RUNTIME_DIR/gooseneck/</code></td><td>Player socket, daemon socket and log</td></tr>
+</table>

@@ -1,0 +1,24 @@
+<!-- title: Radio -->
+<!-- group: Using gooseneck -->
+<!-- desc: Seed it with one artist and it plays forever, drifting through related artists without repeating a track. -->
+<pre data-lang="sh">goose radio "8th Day"     # start
+goose radio               # what's on
+goose radio stop          # end it (queued tracks keep playing)</pre>
+<p>In the TUI, select an artist and press <kbd>m</kbd>. <code>mix</code> is an alias for <code>radio</code>.</p>
+
+<h2>How it picks songs</h2>
+<ol>
+  <li>The first batch (30 tracks, change with <code>-n</code>) mixes the seed artist with <strong>related artists that are in the catalog</strong>.</li>
+  <li>When three or fewer tracks are left, the background daemon adds 25 more.</li>
+  <li>Each new batch is seeded by the original artist about a third of the time, otherwise by a related artist that hasn't been used in the last five batches. Each new seed's relatives widen the pool, so the station slowly wanders.</li>
+  <li>No track repeats within a session.</li>
+</ol>
+
+<h2>What ends it</h2>
+<ul>
+  <li>Playing something else (replacing the queue).</li>
+  <li><code>goose radio stop</code>.</li>
+  <li>Shutting the player down.</li>
+</ul>
+<p>Adding to the queue (<code>--add</code>, <code>--next</code>, <kbd>a</kbd>, <kbd>A</kbd>) does <em>not</em> end the radio.</p>
+<div class="callout"><p>Radio top-ups aren't written to your play history, so <code>goose history</code> stays readable. Listens still scrobble normally.</p></div>

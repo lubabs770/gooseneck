@@ -1,0 +1,184 @@
+<section class="hero">
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="grain"></div>
+  <a class="pill" href="{{REPO}}/releases/latest"><b>new</b> Endless radio, personal catalogs &amp; offline downloads →</a>
+  <h1>Jewish music, <em>in your terminal.</em></h1>
+  <p class="sub">A hand-curated catalog of <strong>{{COUNT}} artists</strong>, a gorgeous full-screen player, and a CLI that can do everything it can. From Carlebach to 8th Day, without opening a single browser tab.</p>
+  <div class="cta">
+    <a class="btn btn-primary" href="docs/install/">Get started</a>
+    <a class="btn" href="docs/">Read the docs</a>
+    <a class="btn" href="{{REPO}}">★ GitHub</a>
+  </div>
+  <div class="install">
+    <span class="prompt">$</span><code>{{INSTALL}}</code>
+    <button data-copy="{{INSTALL}}">copy</button>
+  </div>
+  <p class="needs">Linux &amp; macOS (Windows binaries on the <a href="{{REPO}}/releases">releases page</a>) · needs <a href="https://mpv.io">mpv</a> and <a href="https://github.com/yt-dlp/yt-dlp">yt-dlp</a></p>
+
+  <div class="term-wrap">
+    <div class="term">
+      <div class="term-bar"><i></i><i></i><i></i><span>goose</span></div>
+      <img src="demo.gif" alt="The gooseneck TUI: browsing artists, opening an album and playing it" width="1200" height="720">
+    </div>
+    <div class="np">
+      <div class="eq"><i></i><i></i><i></i><i></i></div>
+      <div><small>now playing</small><b>Elika D'meir — 8th Day</b></div>
+    </div>
+  </div>
+</section>
+
+<div class="stats reveal">
+  <div><b>{{COUNT}}</b><span>curated artists</span></div>
+  <div><b>{{THEMES}}</b><span>themes, live preview</span></div>
+  <div><b>40+</b><span>CLI commands</span></div>
+  <div><b>0</b><span>browser tabs</span></div>
+</div>
+
+<section class="section" id="features">
+  <div class="eyebrow">What's inside</div>
+  <h2>Everything you want from a music app. <em>None of the tabs.</em></h2>
+  <p class="intro">gooseneck pulls discographies straight from YouTube Music, plays them through mpv, and keeps going after you close the window.</p>
+  <div class="features">
+    <div class="card wide reveal" style="--c: var(--primary)">
+      <div class="ic">◉</div>
+      <h3>Instant discographies</h3>
+      <p>Albums, singles &amp; EPs, top songs, bios and related artists in about half a second, cached locally so anything you've visited works offline.</p>
+    </div>
+    <div class="card reveal" style="--c: var(--ok)">
+      <div class="ic">▶</div>
+      <h3>A real player</h3>
+      <p>Pause, skip, seek, repeat, shuffle, play-next and a queue. Music keeps playing after you quit.</p>
+    </div>
+    <div class="card reveal" style="--c: var(--accent)">
+      <div class="ic">∞</div>
+      <h3>Endless radio</h3>
+      <p>Seed it with an artist and it drifts through related ones, never repeating a track.</p>
+    </div>
+    <div class="card reveal" style="--c: var(--secondary)">
+      <div class="ic">↓</div>
+      <h3>Offline downloads</h3>
+      <p>Save a track, an album or a whole artist. Downloaded music plays from disk, instantly.</p>
+    </div>
+    <div class="card reveal" style="--c: var(--warn)">
+      <div class="ic">♫</div>
+      <h3>Scrobbling</h3>
+      <p>A private local listening log, plus ListenBrainz and Last.fm if you want them.</p>
+    </div>
+    <div class="card reveal" style="--c: var(--info)">
+      <div class="ic">❖</div>
+      <h3>Your own catalogs</h3>
+      <p>Add the artists we missed, or follow a friend's list. Everything merges.</p>
+    </div>
+    <div class="card reveal" style="--c: var(--err)">
+      <div class="ic">◐</div>
+      <h3>Wears your theme</h3>
+      <p>On Omarchy it follows your desktop theme live. Everywhere else, pick from {{THEMES}}.</p>
+    </div>
+    <div class="card reveal" style="--c: var(--primary)">
+      <div class="ic">⌘</div>
+      <h3>Fully scriptable</h3>
+      <p>Every action is a command with <code>--json</code> output and tab completion.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="themes">
+  <div class="split rev">
+    <div class="reveal">
+      <div class="eyebrow">Themes</div>
+      <h2>Go on, <em>taste one.</em></h2>
+      <p class="intro" style="margin-bottom:24px">These are the exact palettes the TUI ships with. Click one and this whole page repaints, the same way gooseneck does when you press <kbd>t</kbd>. (You can press <kbd>t</kbd> here too.)</p>
+      <div class="chips">{{CHIPS}}</div>
+      <ul class="ticks">
+        <li><span><b>Omarchy users:</b> the default <code>auto</code> theme follows your desktop and repaints the moment you run <code>omarchy theme set</code>.</span></li>
+        <li><span><b>Or keep your terminal's own colours</b> with the <code>system</code> theme.</span></li>
+      </ul>
+    </div>
+    <div class="mock reveal" aria-hidden="true">
+      <div class="mock-main">
+        <div class="tabs"><b>Albums</b><span>Singles</span><span>Top songs</span><span>Related</span></div>
+        <div class="mt">Lucky · 8th Day</div>
+        <div class="mm">Album · 2021 · 11 tracks · 39 min · <span style="color:var(--ok)">● offline</span></div>
+        <div class="row"><span class="n">1</span><span class="t">Lucky</span><span class="d">3:15</span></div>
+        <div class="row"><span class="n">2</span><span class="t">Rollin</span><span class="d">3:27</span></div>
+        <div class="row"><span class="n">3</span><span class="t">I'm Stickin Around</span><span class="d">3:40</span></div>
+        <div class="row play"><span class="n">4</span><span class="t">▶ Elika D'meir</span><span class="d">3:24</span></div>
+        <div class="row sel"><span class="n">5</span><span class="t">Lo Olecha</span><span class="d">3:57</span></div>
+        <div class="row"><span class="n">6</span><span class="t">B'zeh Hashaar</span><span class="d">3:49</span></div>
+        <div class="row"><span class="n">7</span><span class="t">Tefillin Song</span><span class="d">3:54</span></div>
+        <div class="row"><span class="n">8</span><span class="t">Una Meser</span><span class="d">3:37</span></div>
+      </div>
+      <div class="mock-side">
+        <div class="art"></div>
+        <div class="lbl">NOW PLAYING</div>
+        <div style="color:var(--text);font-weight:700">Elika D'meir</div>
+        <div style="color:var(--muted)">8th Day</div>
+        <div class="bar"><i></i></div>
+        <div class="lbl">▶ 1:24 / 3:24 · vol 80 · ↻ all</div>
+        <div class="lbl" style="margin-top:14px;color:var(--accent)">♫ scrobbles in 0:26</div>
+      </div>
+      <div class="status"><span class="badge">ALBUM</span><span><b>p</b> play</span><span><b>a</b> queue</span><span><b>D</b> download</span><span><b>m</b> radio</span><span><b>ctrl+p</b> commands</span><span style="margin-left:auto">theme: <b data-theme-name>opencode</b></span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="catalog">
+  <div class="eyebrow">The catalog</div>
+  <h2>{{COUNT}} artists, <em>tagged with love.</em></h2>
+  <p class="intro">Chazzanim and chassidish legends, Israeli stars, kumzitz singers, a cappella groups, DJs and kids' music. Refreshed daily, and you can bolt on your own.</p>
+  <div class="marquee reveal"><div class="track" data-dup>{{FACES}}</div></div>
+  <ul class="tagcloud reveal">{{TAGS}}</ul>
+</section>
+
+<section class="section" id="cli">
+  <div class="split">
+    <div class="reveal">
+      <div class="eyebrow">The CLI</div>
+      <h2>Everything the TUI does, <em>one command away.</em></h2>
+      <p class="intro" style="margin-bottom:0">Same player, same queue, from any shell, script or window-manager keybinding. Fuzzy names everywhere, <code>--json</code> on every listing.</p>
+      <ul class="ticks">
+        <li><span><b>Status bars:</b> <code>goose now --format '{title} — {artist}'</code></span></li>
+        <li><span><b>Media keys:</b> bind <code>goose toggle</code> and <code>goose next</code></span></li>
+        <li><span><b>Completion</b> for zsh, bash, fish and PowerShell, artist and album names included</span></li>
+      </ul>
+      <p style="margin-top:28px"><a class="btn" href="docs/cli/">CLI reference →</a></p>
+    </div>
+    <div class="reveal">
+      <div class="term flat"><div class="term-bar"><i></i><i></i><i></i><span>zsh</span></div><img src="cli.gif" alt="The goose CLI searching, showing an album and controlling playback" loading="lazy"></div>
+<pre data-lang="sh">goose play "8th Day" lucky       # fuzzy album names
+goose radio fried                # endless radio
+goose download "8th Day" --top   # save for offline
+goose artists | fzf | xargs -I{} goose play {}</pre>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="keys">
+  <div class="eyebrow">Keyboard first</div>
+  <h2>Feels like home <em>if you live in vim.</em></h2>
+  <p class="intro">Start typing to search. <kbd>enter</kbd> to open, <kbd>p</kbd> to play. The rest is muscle memory.</p>
+  <div class="keys reveal">
+    <div class="key"><kbd>hjkl</kbd>move around</div>
+    <div class="key"><kbd>/</kbd>filter the page</div>
+    <div class="key"><kbd>p</kbd>play</div>
+    <div class="key"><kbd>a</kbd>add to queue</div>
+    <div class="key"><kbd>A</kbd>play next</div>
+    <div class="key"><kbd>s</kbd>shuffle</div>
+    <div class="key"><kbd>space</kbd>pause</div>
+    <div class="key"><kbd>n</kbd> <kbd>N</kbd>next / previous</div>
+    <div class="key"><kbd>[</kbd> <kbd>]</kbd>seek ∓10s</div>
+    <div class="key"><kbd>m</kbd>radio from here</div>
+    <div class="key"><kbd>D</kbd>download</div>
+    <div class="key"><kbd>ctrl+p</kbd>command palette</div>
+  </div>
+</section>
+
+<section class="final reveal">
+  <div class="blob b1" style="left:-10%;top:-40%"></div><div class="blob b2" style="right:-10%;top:30%"></div><div class="grain"></div>
+  <div class="eyebrow">Ready?</div>
+  <h2>Put the kettle on. <em>Press play.</em></h2>
+  <div class="install" style="margin-left:auto;margin-right:auto">
+    <span class="prompt">$</span><code>{{INSTALL}}</code>
+    <button data-copy="{{INSTALL}}">copy</button>
+  </div>
+  <p class="needs">then run <code>goose</code></p>
+</section>

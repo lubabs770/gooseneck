@@ -1,0 +1,56 @@
+<!-- title: The TUI -->
+<!-- group: Using gooseneck -->
+<!-- desc: Run goose with no arguments. Start typing to search, enter to open, p to play. -->
+<img class="shot" src="../../demo.gif" alt="The gooseneck TUI" loading="lazy">
+
+<h2>Pages</h2>
+<p>Jump between the main pages with the number keys:</p>
+<table>
+  <tr><th>Key</th><th>Page</th><th>What's there</th></tr>
+  <tr><td><kbd>1</kbd></td><td>Home</td><td>A search prompt and your recently played artists. Start typing to search, or type <code>/</code> for commands.</td></tr>
+  <tr><td><kbd>2</kbd></td><td>Library</td><td>The whole catalog as a grid or list. <kbd>tab</kbd> cycles tags, <kbd>c</kbd> cycles catalogs.</td></tr>
+  <tr><td><kbd>3</kbd></td><td>Queue</td><td>What's playing and what's next.</td></tr>
+  <tr><td><kbd>4</kbd></td><td>History</td><td>What you've played, plus a <em>Listens</em> tab from your scrobble log.</td></tr>
+  <tr><td><kbd>5</kbd></td><td>Downloads</td><td>Everything saved for offline play.</td></tr>
+</table>
+<p>Opening an artist shows <strong>Albums</strong>, <strong>Singles &amp; EPs</strong>, <strong>Top songs</strong> and <strong>Related</strong> artists (<kbd>tab</kbd> switches section). <kbd>esc</kbd> goes back.</p>
+
+<h2>Keys</h2>
+<table>
+  <tr><th>Key</th><th>Action</th></tr>
+  <tr><td><kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd> / arrows</td><td>Move</td></tr>
+  <tr><td><kbd>enter</kbd></td><td>Open, or play from here in a tracklist</td></tr>
+  <tr><td><kbd>esc</kbd></td><td>Back</td></tr>
+  <tr><td><kbd>/</kbd></td><td>Search / filter the current page</td></tr>
+  <tr><td><kbd>tab</kbd></td><td>Next section (artist page) or tag (library)</td></tr>
+  <tr><td><kbd>p</kbd> <kbd>a</kbd> <kbd>A</kbd> <kbd>s</kbd></td><td>Play · add to queue · play next · shuffle</td></tr>
+  <tr><td><kbd>P</kbd> <kbd>S</kbd></td><td>Play / shuffle everything by this artist</td></tr>
+  <tr><td><kbd>space</kbd> <kbd>n</kbd> <kbd>N</kbd></td><td>Pause · next · previous</td></tr>
+  <tr><td><kbd>[</kbd> <kbd>]</kbd> · <kbd>{</kbd> <kbd>}</kbd></td><td>Seek ∓10s · ∓60s</td></tr>
+  <tr><td><kbd>-</kbd> <kbd>+</kbd></td><td>Volume</td></tr>
+  <tr><td><kbd>r</kbd></td><td>Repeat: off → all → one</td></tr>
+  <tr><td><kbd>D</kbd></td><td>Download the selection for offline play</td></tr>
+  <tr><td><kbd>m</kbd></td><td>Endless radio from the selected artist</td></tr>
+  <tr><td><kbd>c</kbd></td><td>Cycle catalogs (library)</td></tr>
+  <tr><td><kbd>ctrl+p</kbd></td><td>Command palette</td></tr>
+  <tr><td><kbd>t</kbd></td><td>Theme picker with live preview</td></tr>
+  <tr><td><kbd>v</kbd> · <kbd>i</kbd> · <kbd>b</kbd></td><td>Grid/list · art on/off · sidebar</td></tr>
+  <tr><td><kbd>?</kbd></td><td>Help</td></tr>
+  <tr><td><kbd>q</kbd></td><td>Quit (music keeps playing; <code>goose stop</code> stops it)</td></tr>
+</table>
+<div class="callout tip"><p>This site knows a few of these too: <kbd>ctrl+k</kbd> or <kbd>/</kbd> opens search, and <kbd>t</kbd> cycles themes.</p></div>
+
+<h2>Command palette</h2>
+<p><kbd>ctrl+p</kbd> opens a fuzzy list of every action available on the current page, like <em>add-to-catalog</em>, <em>radio</em>, <em>download</em> or <em>theme</em>. From the home prompt you can also type them as <code>/commands</code>.</p>
+
+<h2>Pictures &amp; album art</h2>
+<p>On terminals that speak the Kitty graphics protocol (Kitty, Ghostty) you get real images. Everywhere else, including tmux, gooseneck draws colour half-block art. Force a mode with <code>GOOSENECK_IMAGES=kitty|halfblock|off</code>, or press <kbd>i</kbd> to hide art. Prefetch pictures for a whole tag with:</p>
+<pre data-lang="sh">goose cache warm --tag famous</pre>
+
+<h2>Sidebar</h2>
+<p>On wide terminals a now-playing sidebar shows the current track, progress, volume, repeat mode and when the track will scrobble. Toggle it with <kbd>b</kbd>.</p>
+
+<h2>Quitting doesn't stop the music</h2>
+<p>The player is a background mpv process that outlives the TUI on purpose. Reopen <code>goose</code> any time and you're back in control. To actually stop:</p>
+<pre data-lang="sh">goose stop          # stop and clear the queue
+goose quit-player   # shut the background player down</pre>

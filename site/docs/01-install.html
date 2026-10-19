@@ -1,0 +1,55 @@
+<!-- title: Install -->
+<!-- group: Getting started -->
+<!-- desc: One line to install gooseneck, plus the two programs it plays music with. -->
+<h2>The one-liner</h2>
+<pre data-lang="sh">curl -fsSL https://raw.githubusercontent.com/lubabs770/gooseneck/main/install.sh | sh</pre>
+<p>This downloads the latest release for your OS and CPU and installs <strong><code>gooseneck-player</code></strong> plus the short alias <strong><code>goose</code></strong> into <code>~/.local/bin</code>. Make sure that directory is on your <code>PATH</code>.</p>
+
+<table>
+  <tr><th>Variable</th><th>Does</th></tr>
+  <tr><td><code>BIN_DIR=</code></td><td>Install somewhere else, e.g. <code>BIN_DIR=/usr/local/bin</code></td></tr>
+  <tr><td><code>VERSION=</code></td><td>Pin a release, e.g. <code>VERSION=v0.4.0</code></td></tr>
+</table>
+
+<pre data-lang="sh">curl -fsSL https://raw.githubusercontent.com/lubabs770/gooseneck/main/install.sh | BIN_DIR=/usr/local/bin sh</pre>
+
+<p><strong>Windows:</strong> grab the <code>.exe</code> from the <a href="https://github.com/lubabs770/gooseneck/releases">releases page</a>. Playback works, but it's fire-and-forget for now (no pause/skip from other terminals yet).</p>
+
+<h2>Requirements</h2>
+<ul>
+  <li><strong><a href="https://mpv.io">mpv</a></strong> plays the audio.</li>
+  <li><strong><a href="https://github.com/yt-dlp/yt-dlp">yt-dlp</a></strong> fetches streams and downloads. Keep it fresh, since YouTube changes often.</li>
+  <li><em>Optional:</em> <strong>ffmpeg</strong> tags downloaded files, and <strong><a href="https://github.com/hoyon/mpv-mpris">mpv-mpris</a></strong> puts gooseneck in your desktop's media controls.</li>
+</ul>
+
+<pre data-lang="sh"># Arch / Omarchy
+sudo pacman -S mpv yt-dlp ffmpeg mpv-mpris
+# macOS
+brew install mpv yt-dlp ffmpeg
+# Debian / Ubuntu
+sudo apt install mpv ffmpeg && pipx install yt-dlp</pre>
+
+<h2>Check everything with doctor</h2>
+<pre data-lang="sh">$ goose doctor
+✓  config        ~/.config/gooseneck/config.toml
+✓  catalog       1655 artists, updated 3h ago
+✓  yt-dlp        2026.08.19
+✓  player        mpv v0.41.0
+✓  control       player idle (starts on first play)
+✓  youtube music reachable (458ms)
+✓  scrobbling    to local
+✓  media keys    mpv-mpris found (desktop media controls work)
+✓  images        half-block art (any truecolor terminal)</pre>
+
+<h2>Shell completion</h2>
+<p>Artist and album names complete too, so <code>goose play 8th&lt;tab&gt;</code> just works.</p>
+<pre data-lang="sh">goose completion zsh > "${fpath[1]}/_goose"
+goose completion bash > ~/.local/share/bash-completion/completions/goose
+goose completion fish > ~/.config/fish/completions/goose.fish</pre>
+
+<h2>Updating &amp; uninstalling</h2>
+<p>Re-run the installer to update. To remove gooseneck, delete the two binaries and, if you like, its data:</p>
+<pre data-lang="sh">goose quit-player
+rm ~/.local/bin/goose ~/.local/bin/gooseneck-player
+rm -r ~/.config/gooseneck      # config, cache, history, scrobbles</pre>
+<div class="callout warn"><p>Downloads live in <code>~/Music/gooseneck</code> and are <em>not</em> removed by the above.</p></div>

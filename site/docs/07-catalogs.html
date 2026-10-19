@@ -1,0 +1,34 @@
+<!-- title: Catalogs -->
+<!-- group: Using gooseneck -->
+<!-- desc: The main catalog is curated. Add your own next to it, or follow someone else's, and they merge everywhere. -->
+<h2>The main catalog</h2>
+<p><a href="https://github.com/lubabs770/gooseneck/blob/main/artists.json"><code>artists.json</code></a> lists about 1,650 artists, each with a YouTube Music channel, a picture and tags. A GitHub Action refreshes it daily. gooseneck downloads it on first run; refresh it with:</p>
+<pre data-lang="sh">goose catalog update
+goose tags                     # famous, chasidish, israeli, american, female, kids, dj, acapella
+goose artists --tag chasidish</pre>
+
+<h2>Your own catalog</h2>
+<pre data-lang="sh">goose catalog new mine                              # create a personal catalog
+goose catalog add-artist mine "Yaakov Shwekey"      # by name (YouTube Music search)
+goose catalog add-artist mine https://music.youtube.com/channel/UC… --tag chasidish
+goose catalog remove-artist mine shwekey</pre>
+<p>From an artist page in the TUI, <kbd>ctrl+p</kbd> → <strong>add-to-catalog</strong> does the same thing.</p>
+
+<h2>Following someone else's</h2>
+<pre data-lang="sh">goose catalog add friends https://example.com/artists.json
+goose catalog                    # list catalogs and counts
+goose catalog rm friends         # stop using it (--delete also removes a personal file)</pre>
+<p>Followed catalogs are cached under <code>~/.config/gooseneck/catalogs/</code> and refreshed by <code>goose catalog update</code>. A broken one never blocks startup.</p>
+
+<h2>How merging works</h2>
+<ul>
+  <li>Every catalog shows up everywhere: search, library, completion, radio.</li>
+  <li>Duplicates merge by channel id. The main catalog's name and picture win, and tags are combined.</li>
+  <li>Browse one catalog with <code>--catalog mine</code> (on <code>search</code> and <code>artists</code>) or <kbd>c</kbd> in the TUI library.</li>
+</ul>
+
+<h2>Publishing yours</h2>
+<p>Catalog files use the same shape as the main one, so you can host <code>mine.json</code> anywhere and others can <code>goose catalog add</code> it.</p>
+<pre data-lang="sh">{"count": 1, "artists": [
+  {"id": "UC…", "name": "Yaakov Shwekey", "thumbnail": "https://…", "isChasid": false, "isFamous": true}
+]}</pre>

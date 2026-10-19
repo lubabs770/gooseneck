@@ -1,0 +1,23 @@
+<!-- title: Downloads -->
+<!-- group: Using gooseneck -->
+<!-- desc: Save a track, an album or a whole artist. Downloaded music plays from disk, works offline and starts instantly. -->
+<pre data-lang="sh">goose download "8th Day" lucky        # one album
+goose download "8th Day" lucky 4      # one track
+goose download fried --top            # an artist's top songs
+goose download fried                  # everything they've released
+goose downloads                       # what you have
+goose downloads rm "8th Day" lucky    # delete an album</pre>
+<p>In the TUI press <kbd>D</kbd> on anything. Downloads run one job at a time with a progress bar; queue up as many as you like. <code>dl</code> is an alias.</p>
+
+<h2>Where files go</h2>
+<p>To <code>download_dir</code>, by default <code>~/Music/gooseneck</code> (or <code>$XDG_MUSIC_DIR/gooseneck</code>), laid out as:</p>
+<pre data-lang="sh">~/Music/gooseneck/&lt;Artist&gt;/&lt;Album&gt;/NN - Title [videoId].m4a</pre>
+<p>yt-dlp saves the best audio, m4a when available, and tags it when ffmpeg is installed. The <code>[videoId]</code> in the name is how gooseneck recognises the file as the same track.</p>
+
+<h2>How playback uses them</h2>
+<ul>
+  <li>Every play checks for a local copy first, so downloaded tracks play from disk, even offline.</li>
+  <li>Re-running a download only fetches what's missing.</li>
+  <li>Each track gets 3 attempts with 3 downloads in parallel, because YouTube's 403s are often temporary.</li>
+</ul>
+<pre data-lang="sh">goose config set download_dir ~/Music/jewish</pre>

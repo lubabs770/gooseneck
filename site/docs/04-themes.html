@@ -1,0 +1,38 @@
+<!-- title: Themes -->
+<!-- group: Using gooseneck -->
+<!-- desc: Fourteen built-in palettes, your terminal's own colours, or your Omarchy desktop theme, live. -->
+<p>Click a swatch to repaint this page with that palette. They're the same colours the TUI uses, read straight from its source.</p>
+<div class="swatches" data-swatches></div>
+<script>
+(function () {
+  var box = document.currentScript.previousElementSibling, T = window.GOOSE_THEMES;
+  Object.keys(T).forEach(function (n) {
+    var p = T[n], b = document.createElement("button");
+    b.className = "swatch"; b.setAttribute("data-theme-pick", n);
+    b.innerHTML = '<span class="sw-top" style="background:' + p.bg + '"><i style="background:' + p.primary + '"></i><i style="background:' + p.secondary + '"></i><i style="background:' + p.accent + '"></i><i style="background:' + p.ok + '"></i></span><span class="sw-name">' + n + '</span>';
+    box.appendChild(b);
+  });
+})();
+</script>
+
+<h2>Picking a theme</h2>
+<p>In the TUI press <kbd>t</kbd> for a picker with <strong>live preview</strong>: move through the list and the whole app repaints as you go. Or set it from anywhere:</p>
+<pre data-lang="sh">goose config set theme tokyonight
+goose config set theme auto        # back to the default</pre>
+<p>The CLI's colours follow the same theme.</p>
+
+<h2>Omarchy: follows your desktop</h2>
+<p>The default theme is <code>auto</code>. On <a href="https://omarchy.org">Omarchy</a> that means the <code>omarchy</code> theme: gooseneck reads the current Omarchy theme's <code>colors.toml</code> and repaints <strong>live</strong> when you switch with <code>omarchy theme set</code>, no restart needed. Anywhere else, <code>auto</code> means <code>opencode</code>.</p>
+
+<h2>Your terminal's colours</h2>
+<p>The <code>system</code> theme uses your terminal's own palette and background, so gooseneck blends into whatever you already have.</p>
+
+<h2>All the names</h2>
+<table>
+  <tr><th>Value</th><th>Meaning</th></tr>
+  <tr><td><code>auto</code></td><td>Omarchy's theme if installed, else <code>opencode</code> (default)</td></tr>
+  <tr><td><code>omarchy</code></td><td>The current Omarchy desktop theme, live</td></tr>
+  <tr><td><code>system</code></td><td>Your terminal's own palette</td></tr>
+  <tr><td><code>opencode</code> <code>ayu</code> <code>catppuccin</code> <code>dracula</code> <code>everforest</code> <code>gruvbox</code> <code>kanagawa</code> <code>latte</code> <code>matrix</code> <code>mono</code> <code>nord</code> <code>onedark</code> <code>rosepine</code> <code>tokyonight</code></td><td>Built-in palettes (<code>latte</code> is the light one)</td></tr>
+</table>
+<p>Unknown names (typos included) fall back to <code>auto</code>.</p>

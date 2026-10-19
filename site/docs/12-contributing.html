@@ -1,0 +1,40 @@
+<!-- title: Building & contributing -->
+<!-- group: Reference -->
+<!-- desc: Go 1.23+, no cgo. Architecture notes live in LLM.md. -->
+<h2>Build from source</h2>
+<pre data-lang="sh">git clone https://github.com/lubabs770/gooseneck
+cd gooseneck/player
+go build -o gooseneck-player .
+go vet ./... && go test ./...</pre>
+<p>CI tests and cross-compiles linux/macOS/windows × amd64/arm64 on every change, and publishes a release for <code>v*</code> tags.</p>
+
+<h2>Find your way around</h2>
+<p>Architecture notes for contributors (and AI agents) are in <a href="https://github.com/lubabs770/gooseneck/blob/main/LLM.md"><code>LLM.md</code></a>. The short version:</p>
+<table>
+  <tr><th>Package</th><th>Role</th></tr>
+  <tr><td><code>internal/library</code></td><td>The service layer: catalog, cache, YouTube Music, player, history. Put logic here.</td></tr>
+  <tr><td><code>internal/cli</code></td><td>Cobra commands</td></tr>
+  <tr><td><code>internal/tui</code></td><td>The Bubble Tea app</td></tr>
+  <tr><td><code>internal/ytm</code></td><td>Read-only YouTube Music client</td></tr>
+  <tr><td><code>internal/mpv</code></td><td>The headless mpv daemon over JSON IPC</td></tr>
+  <tr><td><code>internal/store</code></td><td>SQLite cache and history</td></tr>
+  <tr><td><code>internal/catalog</code></td><td>artists.json, tags, fuzzy search, multi-catalog merge</td></tr>
+</table>
+
+<h2>Test without touching your setup</h2>
+<pre data-lang="sh">GOOSENECK_HOME=$(mktemp -d) go run . play "8th Day" lucky</pre>
+
+<h2>The demo GIFs</h2>
+<p>Recorded with <a href="https://github.com/charmbracelet/vhs">VHS</a> against an isolated, pre-warmed demo home:</p>
+<pre data-lang="sh">demo/setup.sh && vhs demo/tui.tape && vhs demo/cli.tape</pre>
+
+<h2>This website</h2>
+<p>It lives in <code>site/</code>: plain HTML fragments and a dependency-free Python script. Theme colours are read from the TUI's source, so they never drift.</p>
+<pre data-lang="sh">python3 site/build.py      # writes site/dist/
+python3 -m http.server -d site/dist</pre>
+
+<h2>Roadmap</h2>
+<ul>
+  <li><strong>Windows playback control</strong> via mpv's named-pipe IPC.</li>
+  <li><strong>Lyrics</strong> in the sidebar where YouTube Music has them.</li>
+</ul>

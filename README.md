@@ -5,6 +5,8 @@ full-screen TUI in the style of [OpenCode](https://opencode.ai), and a CLI that
 can do everything the TUI can — browse discographies, queue albums, and control
 playback from any shell, script or keybinding.
 
+**Website & docs: <https://gooseneck-7gj.pages.dev>**
+
 [![Build player](https://github.com/lubabs770/gooseneck/actions/workflows/build-player.yml/badge.svg)](https://github.com/lubabs770/gooseneck/actions/workflows/build-player.yml)
 
 ![gooseneck TUI demo](demo.gif)

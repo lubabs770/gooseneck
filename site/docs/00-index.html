@@ -1,0 +1,29 @@
+<!-- title: Introduction -->
+<!-- group: Getting started -->
+<!-- desc: gooseneck is a curated catalog of Jewish music artists, a full-screen terminal player, and a CLI that can do everything the player can. -->
+<p>Run <code>goose</code> and you get a full-screen app in the style of <a href="https://opencode.ai">OpenCode</a>: search ~1,650 artists, open a discography, press <kbd>p</kbd>. Music plays through <a href="https://mpv.io">mpv</a> in the background, so it keeps going after you close the window, and every other terminal (or script, or keybinding) controls the same player.</p>
+
+<img class="shot" src="../demo.gif" alt="The gooseneck TUI" loading="lazy">
+
+<h2>Thirty-second tour</h2>
+<pre data-lang="sh">curl -fsSL https://raw.githubusercontent.com/lubabs770/gooseneck/main/install.sh | sh
+goose doctor                 # check mpv, yt-dlp and friends
+goose                        # open the TUI
+goose play "8th Day" lucky   # …or skip it entirely
+goose radio fried            # endless radio from an artist</pre>
+
+<h2>What's in the box</h2>
+<ul>
+  <li><strong>A catalog</strong>: <code>artists.json</code>, ~1,650 artists tagged Chasidish, Israeli, A cappella, Kids and more, refreshed daily.</li>
+  <li><strong>A TUI</strong>: browse, queue, play, download, change themes, all from the keyboard.</li>
+  <li><strong>A CLI</strong>: every TUI action as a <code>goose</code> command, with <code>--json</code> output and shell completion.</li>
+  <li><strong>A small daemon</strong> that scrobbles your listens and keeps radio going, even with the TUI closed.</li>
+</ul>
+
+<h2>Where to next</h2>
+<div class="grid2">
+  <a href="install/"><b>Install →</b><span>One line, plus mpv and yt-dlp.</span></a>
+  <a href="tui/"><b>The TUI →</b><span>Every page and every key.</span></a>
+  <a href="cli/"><b>CLI reference →</b><span>All the commands, with recipes.</span></a>
+  <a href="themes/"><b>Themes →</b><span>14 palettes, plus Omarchy and your terminal's own.</span></a>
+</div>

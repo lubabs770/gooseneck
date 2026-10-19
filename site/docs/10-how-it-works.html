@@ -1,0 +1,20 @@
+<!-- title: How it works -->
+<!-- group: Reference -->
+<!-- desc: A catalog, YouTube Music's web API, a SQLite cache, and mpv running in the background. -->
+<h2>The pieces</h2>
+<ul>
+  <li><strong>Catalog.</strong> <code>artists.json</code> is refreshed daily by a GitHub Action and downloaded on first run.</li>
+  <li><strong>Music data.</strong> Artist and album pages come from YouTube Music's web API, one request each (about half a second), cached in SQLite: artist pages for 72 hours, albums for 30 days. Stale copies are served when you're offline. Channels without a YouTube Music page fall back to a <code>yt-dlp</code> uploads listing.</li>
+  <li><strong>Playback.</strong> The first play starts <code>mpv --idle</code> with an IPC socket in <code>$XDG_RUNTIME_DIR/gooseneck/</code>. The TUI and every <code>goose</code> command talk to that socket, which is why any terminal can control the music. mpv streams audio through its yt-dlp hook.</li>
+  <li><strong>Daemon.</strong> A single background process handles scrobbling and radio top-ups, and exits when there's nothing left to do.</li>
+  <li><strong>History.</strong> Every play is recorded (<code>goose history</code>, <code>goose top</code>), and the home screen shows recently played artists.</li>
+</ul>
+
+<h2>One brain, two faces</h2>
+<p>The TUI and the CLI are thin layers over the same library code. The rule in the codebase: <strong>every TUI action must be reachable from the CLI</strong>. If you can click it, you can script it.</p>
+
+<h2>Media keys</h2>
+<p>Install <a href="https://github.com/hoyon/mpv-mpris">mpv-mpris</a> and the background player appears in desktop media controls and <code>playerctl</code> automatically. <code>goose doctor</code> tells you whether it's there.</p>
+
+<h2>Hebrew</h2>
+<p>Most terminals don't do right-to-left text. gooseneck reorders Hebrew text itself, so titles and artist names read correctly.</p>

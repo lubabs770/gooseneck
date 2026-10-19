@@ -1,0 +1,30 @@
+<!-- title: Troubleshooting -->
+<!-- group: Reference -->
+<!-- desc: Start with goose doctor. Most problems are an old yt-dlp. -->
+<pre data-lang="sh">goose doctor</pre>
+
+<h2>Nothing plays, or a track fails</h2>
+<p>YouTube changes often, and an out-of-date yt-dlp is the usual culprit. Update it (<code>yt-dlp -U</code>, or through your package manager), then try again. If yt-dlp lives somewhere unusual, point gooseneck at it with <code>goose config set bin_dir /path/to/dir</code>.</p>
+
+<h2>Downloads fail with 403</h2>
+<p>These are often temporary. gooseneck already retries each track three times; re-run the same <code>goose download</code> and it only fetches what's missing.</p>
+
+<h2>No pictures</h2>
+<p>Real images need a terminal with the Kitty graphics protocol (Kitty, Ghostty). Inside tmux you get half-block art. Force a mode with <code>GOOSENECK_IMAGES=halfblock</code>, or press <kbd>i</kbd> to turn art off.</p>
+
+<h2>The music won't stop</h2>
+<p>That's on purpose: the player outlives the TUI.</p>
+<pre data-lang="sh">goose stop          # stop and clear the queue
+goose quit-player   # shut it down</pre>
+
+<h2>Scrobbles aren't showing up</h2>
+<pre data-lang="sh">goose scrobble          # status, including queued listens
+goose scrobble flush    # send them now</pre>
+<p>Remember a track only counts after half its length or 4 minutes of actual listening.</p>
+
+<h2>Start fresh</h2>
+<pre data-lang="sh">goose cache clear       # drop cached pages (history is kept)
+GOOSENECK_HOME=/tmp/goose-test goose    # a clean, throwaway setup</pre>
+
+<h2>Still stuck?</h2>
+<p><a href="https://github.com/lubabs770/gooseneck/issues">Open an issue</a> with the output of <code>goose doctor</code> and <code>goose version</code>.</p>

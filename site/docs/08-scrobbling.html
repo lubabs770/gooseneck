@@ -1,0 +1,39 @@
+<!-- title: Scrobbling -->
+<!-- group: Using gooseneck -->
+<!-- desc: Always to a private local log, and optionally to ListenBrainz and Last.fm, by real listening time. -->
+<h2>The local log</h2>
+<p>Every listen that counts is written to its own SQLite file, <code>~/.config/gooseneck/scrobbles.db</code>. No account needed.</p>
+<pre data-lang="sh">goose scrobbles -s today                  # recent listens
+goose scrobbles top artist -s month       # also: track, album
+goose scrobbles stats -s year             # listens, time, artists, days
+goose scrobbles export --format listenbrainz > listens.json   # importable later
+goose scrobbles export --format csv > listens.csv</pre>
+<p>Periods: <code>today</code>, <code>week</code>, <code>month</code>, <code>year</code>, <code>all</code>, or durations like <code>7d</code> / <code>12h</code>. The TUI's History page has a <em>Listens</em> tab with the same data. Move it with <code>scrobble_db</code>, or turn it off with <code>goose config set local_scrobble false</code>.</p>
+
+<h2>What counts as a listen</h2>
+<p>gooseneck uses Last.fm's rules, measured by <strong>actual listening</strong>:</p>
+<ul>
+  <li>A track counts after half its length or 4 minutes, whichever comes first.</li>
+  <li>Pauses and seeking don't count toward that.</li>
+  <li>Tracks under 30 seconds never count.</li>
+  <li>Playing a track on repeat counts each time through.</li>
+</ul>
+<p>The TUI sidebar shows when the current track will scrobble.</p>
+
+<h2>ListenBrainz</h2>
+<pre data-lang="sh">goose scrobble login listenbrainz     # paste your token from listenbrainz.org/settings</pre>
+
+<h2>Last.fm</h2>
+<p>Last.fm requires every app to use an API key. Create one at <a href="https://www.last.fm/api/account/create">last.fm/api/account/create</a> (free; the callback URL can stay empty), then:</p>
+<pre data-lang="sh">goose scrobble login lastfm --key YOUR_KEY --secret YOUR_SECRET</pre>
+<p>Your browser opens to approve gooseneck. After that, it's automatic.</p>
+
+<h2>Managing it</h2>
+<pre data-lang="sh">goose scrobble                 # status: services, current track, queue
+goose scrobble off | on
+goose scrobble flush           # send queued listens now
+goose scrobble logout lastfm</pre>
+
+<h2>The background daemon</h2>
+<p>A small daemon starts with playback, so scrobbling keeps working after you close the TUI. It polls the player every couple of seconds, queues listens in the database and sends them; when you're offline they wait and go out later. It exits on its own about 30 seconds after the player goes away. The same daemon keeps <a href="../radio/">radio</a> topped up.</p>
+<div class="callout tip"><p>Credentials live in the config file, which gooseneck writes with mode <code>0600</code> and masks in <code>goose config</code> output.</p></div>
