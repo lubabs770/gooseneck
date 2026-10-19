@@ -62,6 +62,15 @@ func commands(a *App) []command {
 			}
 			return a.radio(id, name)
 		}},
+		{"stop-radio", "end the radio session (the queue keeps playing)", "", func(a *App) tea.Cmd {
+			if !a.lib.RadioStatus().Active {
+				a.notify("no radio playing", false)
+				return nil
+			}
+			a.lib.StopRadio()
+			a.notify("radio off", false)
+			return nil
+		}},
 		{"random", "play a random popular artist", "", func(a *App) tea.Cmd {
 			tg, _ := catalog.FindTag("famous")
 			list := a.lib.Cat.Filter(tg)
@@ -105,7 +114,7 @@ func commands(a *App) []command {
 				a.notify("scrobbling on, but no service is set up: goose scrobble login", true)
 				return nil
 			}
-			go a.lib.EnsureScrobbler()
+			go a.lib.EnsureDaemon()
 			a.notify("scrobbling on", false)
 			return nil
 		}},
@@ -315,7 +324,7 @@ var helpSections = []struct {
 	}},
 	{"Play", [][2]string{
 		{"p", "play selection"}, {"a", "add to queue"}, {"A", "play next"},
-		{"s", "shuffle selection"}, {"P S", "play / shuffle whole artist"}, {"m", "radio: artist + related"},
+		{"s", "shuffle selection"}, {"P S", "play / shuffle whole artist"}, {"m", "endless radio from here"},
 		{"D", "download for offline"},
 	}},
 	{"Player", [][2]string{

@@ -62,7 +62,26 @@ internal/bidi            Hebrew (RTL) visual reordering for terminals
   streaming `dlProgress` over a channel; `dlFinished` is forwarded to pages so
   they refresh their `offline` markers.
 
-### Scrobbling (`internal/scrobble`, `library/scrobbler.go`)
+### Radio (`library/radio.go`)
+
+- `StartRadio` queues a first batch (`Radio(seed, n, exclude)`) and saves a
+  `RadioState` in kv (`radio:state`): seed, played ids (≤2000), a pool of
+  related catalog artists, recent seeds. `ExtendRadio` (called by the daemon
+  every tick) appends 25 more when ≤3 tracks remain; `nextSeed` returns the
+  original artist ~1/3 of the time, else a related artist not used in the last
+  5 batches, and each new seed's relatives widen the pool.
+- `Lib.Play` with `Mode == Replace && !Radio` calls `StopRadio`; top-ups use
+  `NoLog` so they don't spam history. The daemon stops the radio when the
+  player goes away.
+
+### Daemon & scrobbling (`internal/scrobble`, `library/scrobbler.go`)
+
+- One background process, `goose daemon` (hidden; `goose scrobble daemon` is
+  an alias), does scrobbling *and* radio top-ups. `EnsureDaemon` spawns it when
+  `daemonNeeded()` (any scrobble service, incl. local, or an active radio).
+  Single instance via `flock` on `$RUNTIME/daemon.lock` (two can be spawned at
+  once by back-to-back plays — the loser exits silently); status is served as
+  JSON on `$RUNTIME/daemon.sock`. Log: `$RUNTIME/daemon.log`.
 
 - `scrobble.Tracker` is pure logic (unit-tested): fed player snapshots, it
   emits NowPlaying / Scrobble events by wall-clock listening time (½ track or
@@ -77,12 +96,9 @@ internal/bidi            Hebrew (RTL) visual reordering for terminals
 - `ListenBrainz` (token) and `LastFM` (key/secret + session, md5-signed calls)
   implement `scrobble.Service`. `GOOSENECK_LISTENBRAINZ_URL` overrides the
   endpoint for tests.
-- `goose scrobble daemon` (hidden) runs `Lib.RunScrobbler`: polls mpv every 2s,
-  queues scrobbles in SQLite (`scrobble_queue`) then flushes; holds
-  `$RUNTIME/scrobbler.sock` as a single-instance lock that also serves its
-  status as JSON (`QueryScrobbler`). Started by `Lib.EnsureScrobbler` on every
-  play and at TUI start; exits 30s after the player goes away or when
-  `scrobble = false` appears in the config. Log: `$RUNTIME/scrobbler.log`.
+- `Lib.RunDaemon` polls mpv every 2s, queues scrobbles in SQLite
+  (`scrobble_queue`) then flushes; re-reads the config every 10s and exits when
+  there's nothing left to do, or 30s after the player goes away.
 - Auth errors keep listens queued; only malformed-data rejections
   (`scrobble.Permanent`) drop them.
 - Config holds secrets: `config.Save` writes 0600; `config.Secret`/`Mask` hide

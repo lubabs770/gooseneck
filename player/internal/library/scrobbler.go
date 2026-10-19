@@ -18,13 +18,14 @@ import (
 	"github.com/lubabs770/gooseneck/player/internal/scrobble"
 )
 
-// The scrobbler is a tiny background process (`goose scrobble daemon`) that
-// watches the mpv daemon and submits listens. It has to be separate from the
-// TUI because music keeps playing after the TUI quits. It holds a unix socket
-// as a single-instance lock; connecting to that socket returns its status.
+// The daemon is a tiny background process (`goose daemon`) that watches the
+// mpv player: it submits scrobbles and keeps radio sessions topped up. It has
+// to be separate from the TUI because music keeps playing after the TUI quits.
+// It holds a unix socket as a single-instance lock; connecting to that socket
+// returns its status.
 
 // ScrobblerSocket is where the daemon listens.
-func ScrobblerSocket() string { return filepath.Join(config.RuntimeDir(), "scrobbler.sock") }
+func ScrobblerSocket() string { return filepath.Join(config.RuntimeDir(), "daemon.sock") }
 
 // ScrobbleServices returns the configured, enabled services.
 func (l *Lib) ScrobbleServices() []scrobble.Service {
@@ -58,6 +59,7 @@ type ScrobblerStatus struct {
 	Sent      int              `json:"sent"` // scrobbles submitted this session
 	Queued    map[string]int   `json:"queued"`
 	LastError string           `json:"last_error,omitempty"`
+	Radio     string           `json:"radio,omitempty"` // seed artist while a radio session is on
 }
 
 // QueryScrobbler asks a running daemon for its status.
@@ -73,10 +75,15 @@ func QueryScrobbler() (ScrobblerStatus, error) {
 	return st, err
 }
 
-// EnsureScrobbler starts the daemon when scrobbling is set up and it isn't
-// already running. Cheap to call often (one failed dial when it's up).
-func (l *Lib) EnsureScrobbler() {
-	if !l.Player.Managed() || len(l.ScrobbleServices()) == 0 {
+// daemonNeeded reports whether there's anything for the daemon to do.
+func (l *Lib) daemonNeeded() bool {
+	return len(l.ScrobbleServices()) > 0 || l.RadioStatus().Active
+}
+
+// EnsureDaemon starts the daemon when scrobbling or radio needs it and it
+// isn't already running. Cheap to call often (one dial when it's up).
+func (l *Lib) EnsureDaemon() {
+	if !l.Player.Managed() || !l.daemonNeeded() {
 		return
 	}
 	if _, err := QueryScrobbler(); err == nil {
@@ -87,8 +94,8 @@ func (l *Lib) EnsureScrobbler() {
 		return
 	}
 	_ = os.MkdirAll(config.RuntimeDir(), 0o700)
-	logf, _ := os.OpenFile(filepath.Join(config.RuntimeDir(), "scrobbler.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
-	cmd := exec.Command(exe, "scrobble", "daemon")
+	logf, _ := os.OpenFile(filepath.Join(config.RuntimeDir(), "daemon.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	cmd := exec.Command(exe, "daemon")
 	cmd.Env = os.Environ()
 	if logf != nil {
 		cmd.Stdout, cmd.Stderr = logf, logf
@@ -102,23 +109,27 @@ func (l *Lib) EnsureScrobbler() {
 	}
 }
 
-// RunScrobbler is the daemon loop. It returns when the player has been gone
-// for a while (nothing left to scrobble), when ctx ends, or if another
-// scrobbler already owns the socket.
-func (l *Lib) RunScrobbler(ctx context.Context, logw io.Writer) error {
+// RunDaemon is the daemon loop. It returns when the player has been gone for
+// a while, when there's nothing left to do (scrobbling off and no radio), when
+// ctx ends, or if another daemon already owns the socket.
+func (l *Lib) RunDaemon(ctx context.Context, logw io.Writer) error {
 	services := l.ScrobbleServices()
-	if len(services) == 0 {
-		return errors.New("scrobbling is not set up (goose scrobble login …) or is turned off")
+	if !l.daemonNeeded() {
+		return errors.New("nothing to do: scrobbling is off and no radio is playing")
 	}
 	logf := func(f string, a ...any) {
 		fmt.Fprintf(logw, "%s "+f+"\n", append([]any{time.Now().Format("2006-01-02 15:04:05")}, a...)...)
 	}
 	sock := ScrobblerSocket()
 	_ = os.MkdirAll(filepath.Dir(sock), 0o700)
-	if _, err := QueryScrobbler(); err == nil {
-		return errors.New("a scrobbler is already running")
+	// Single instance: an exclusive lock, held until exit. Two daemons can be
+	// spawned at once (e.g. by back-to-back plays); the loser just leaves.
+	release, ok := lockFile(filepath.Join(filepath.Dir(sock), "daemon.lock"))
+	if !ok {
+		return nil
 	}
-	_ = os.Remove(sock) // stale socket from a crashed daemon
+	defer release()
+	_ = os.Remove(sock) // we hold the lock, so any socket file is stale
 	ln, err := net.Listen("unix", sock)
 	if err != nil {
 		return err
@@ -170,8 +181,9 @@ func (l *Lib) RunScrobbler(ctx context.Context, logw io.Writer) error {
 		}
 	}
 
-	logf("scrobbler up: %v", status.Services)
-	flush() // anything left over from last time (e.g. offline listens)
+	logf("daemon up: scrobbling to %v", status.Services)
+	var radioBusy sync.Mutex // one radio top-up at a time
+	flush()                  // anything left over from last time (e.g. offline listens)
 	var tr scrobble.Tracker
 	tick := time.NewTicker(2 * time.Second)
 	defer tick.Stop()
@@ -186,9 +198,20 @@ func (l *Lib) RunScrobbler(ctx context.Context, logw io.Writer) error {
 		case now := <-tick.C:
 			if now.Sub(lastCfg) > 10*time.Second { // honour `goose scrobble off` promptly
 				lastCfg = now
-				if cfg, err := config.Load(); err == nil && !config.On(cfg.Scrobble, true) {
+				if cfg, err := config.Load(); err == nil {
+					l.Cfg.Scrobble, l.Cfg.LocalScrobble = cfg.Scrobble, cfg.LocalScrobble
+					l.Cfg.ListenBrainzToken, l.Cfg.LastfmSession = cfg.ListenBrainzToken, cfg.LastfmSession
+					services = l.ScrobbleServices()
+					mu.Lock()
+					status.Services = status.Services[:0]
+					for _, s := range services {
+						status.Services = append(status.Services, s.Name())
+					}
+					mu.Unlock()
+				}
+				if !l.daemonNeeded() {
 					flush()
-					logf("scrobbling turned off; exiting")
+					logf("nothing left to do; exiting")
 					return nil
 				}
 			}
@@ -199,13 +222,38 @@ func (l *Lib) RunScrobbler(ctx context.Context, logw io.Writer) error {
 				}
 				if now.Sub(gone) > 30*time.Second {
 					flush()
-					logf("player gone; scrobbler exiting")
+					l.StopRadio() // the player was shut down: the session is over
+					logf("player gone; daemon exiting")
 					return nil
 				}
 				tr.Observe(now, scrobble.Snapshot{}, meta)
 				continue
 			}
 			gone = time.Time{}
+			if rs := l.RadioStatus(); rs.Active {
+				mu.Lock()
+				status.Radio = rs.SeedName
+				mu.Unlock()
+				if radioBusy.TryLock() {
+					go func() {
+						defer radioBusy.Unlock()
+						c, cancel := context.WithTimeout(ctx, 2*time.Minute)
+						defer cancel()
+						if n, err := l.ExtendRadio(c); err != nil {
+							logf("radio: %v", err)
+						} else if n > 0 {
+							logf("radio: added %d tracks", n)
+						}
+					}()
+				}
+			} else {
+				mu.Lock()
+				status.Radio = ""
+				mu.Unlock()
+			}
+			if len(services) == 0 {
+				continue
+			}
 			ev := tr.Observe(now, scrobble.Snapshot{Running: true, Idle: st.Idle, Paused: st.Paused,
 				VideoID: st.VideoID, Pos: st.Pos, Duration: st.Duration}, meta)
 			if ev.NowPlaying != nil {

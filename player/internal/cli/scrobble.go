@@ -245,7 +245,7 @@ They're saved to the config (mode 0600), so later logins don't need them.`,
 			if err != nil {
 				return err
 			}
-			return l.RunScrobbler(cmd.Context(), cmd.OutOrStdout())
+			return l.RunDaemon(cmd.Context(), cmd.OutOrStdout())
 		},
 	}
 	c.AddCommand(login, logout, toggle(true), toggle(false), flush, daemon)

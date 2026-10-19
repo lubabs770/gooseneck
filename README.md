@@ -55,7 +55,7 @@ Run `goose`. Start typing to search, `enter` to open, `p` to play.
 | `[` `]` · `{` `}` | seek ∓10s · ∓60s |
 | `-` `+` · `r` | volume · repeat (off → all → one) |
 | `D` | download the selection for offline play |
-| `m` | radio: the artist plus related artists |
+| `m` | endless radio from the selected artist |
 | `1`–`5` | home · library · queue · history · downloads |
 | `ctrl+p` | command palette (also `/` commands from the home prompt) |
 | `t` · `v` · `i` · `b` | themes · grid/list · art on/off · sidebar |
@@ -87,7 +87,8 @@ goose play https://youtu.be/<id>          # any single video
 goose now | queue | next | prev | pause | resume | toggle | stop
 goose seek +30 | seek 1:15 | vol 60 | vol -10 | repeat all | shuffle
 goose queue jump 4 | queue rm 2 | queue clear
-goose radio "8th Day"                     # mix of the artist + related artists
+goose radio "8th Day"                     # endless radio: artist + related artists
+goose radio | radio stop                  # what's on / end it
 goose download "8th Day" lucky            # save an album for offline play
 goose download fried --top                # …or an artist's top songs
 goose downloads | downloads rm "8th Day" lucky
@@ -139,8 +140,8 @@ goose scrobbles export --format csv > listens.csv
 
 The TUI's history page (`4`) has a **Listens** tab with the same log.
 
-A small background scrobbler starts with playback and exits when the player
-does, so listens count whether or not the TUI is open. It uses Last.fm's
+A small background daemon (it also runs radio) starts with playback and exits
+when the player does, so listens count whether or not the TUI is open. It uses Last.fm's
 rules: a track counts after half its length or 4 minutes of *actual*
 listening (pauses and seeking don't count), and tracks under 30 seconds never
 count. "Now playing" is sent too, and the TUI sidebar shows when the current
@@ -192,6 +193,11 @@ mode.
 - **Playback** — the first play starts `mpv --idle` with an IPC socket in
   `$XDG_RUNTIME_DIR/gooseneck/`; the TUI and every `goose` command talk to it.
   Audio is streamed by mpv's yt-dlp hook.
+- **Radio** — `goose radio <artist>` (or `m`) queues a mix of the artist and
+  related catalog artists, then the background daemon keeps topping the queue
+  up as it runs low, drifting through related artists and never repeating a
+  track in the session. Playing something else, `goose radio stop`, or
+  shutting the player down ends it.
 - **Downloads** — `yt-dlp` saves the best audio (m4a when available, tagged
   when ffmpeg is installed) as `<Artist>/<Album>/NN - Title [id].m4a`. Every
   play checks for a local copy first, so downloaded music works offline and
@@ -225,7 +231,6 @@ demo/setup.sh && vhs demo/tui.tape && vhs demo/cli.tape
 
 ## Roadmap
 
-- **Radio mode** — keep playing related artists when the queue runs out.
 - **Multiple catalogs** — a personal `artists.json` alongside the main one.
 - **Windows playback control** — mpv's named-pipe IPC (Windows plays, but
   fire-and-forget for now).

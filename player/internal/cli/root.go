@@ -140,6 +140,17 @@ Add --json to any listing for machine-readable output.`,
 		c.GroupID = "more"
 		root.AddCommand(c)
 	}
+	root.AddCommand(&cobra.Command{
+		Use: "daemon", Short: "Background helper for scrobbling and radio (started automatically)",
+		Hidden: true, Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			l, err := a.lib()
+			if err != nil {
+				return err
+			}
+			return l.RunDaemon(cmd.Context(), cmd.OutOrStdout())
+		},
+	})
 	root.SetHelpCommandGroupID("more")
 	root.SetCompletionCommandGroupID("more")
 	return root

@@ -272,6 +272,8 @@ type PlayRequest struct {
 	ArtistID string
 	Artist   string
 	Album    string
+	Radio    bool // part of a radio session (doesn't end it)
+	NoLog    bool // don't add a history entry (radio top-ups)
 }
 
 // Play remembers the songs' metadata, queues them and logs the play.
@@ -296,7 +298,13 @@ func (l *Lib) Play(req PlayRequest) error {
 	if err := l.Player.Load(ids, req.Mode); err != nil {
 		return err
 	}
-	l.EnsureScrobbler()
+	if req.Mode == mpv.Replace && !req.Radio {
+		l.StopRadio() // playing something else ends the radio
+	}
+	l.EnsureDaemon()
+	if req.NoLog {
+		return nil
+	}
 	ev := store.Play{ArtistID: req.ArtistID, Artist: req.Artist, Album: req.Album, Count: len(songs)}
 	if len(songs) == 1 {
 		ev.Track, ev.VideoID = songs[0].Title, songs[0].VideoID

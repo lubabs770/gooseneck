@@ -260,57 +260,76 @@ func printNow(p *printer, np library.NowPlaying) {
 		extras = append(extras, "repeat "+np.Repeat)
 	}
 	p.println("  " + p.bar(frac, w) + " " + ytm.FormatDuration(int(np.Pos)) + p.S(p.dim, " / "+ytm.FormatDuration(int(dur))+"   "+strings.Join(extras, " · ")))
+	if st, err := library.QueryScrobbler(); err == nil && st.Radio != "" {
+		p.println("  " + p.S(p.accent, "📻 radio · ") + bidi.Vis(st.Radio))
+	}
 }
 
 func (a *app) radioCmd() *cobra.Command {
 	var size int
-	var add bool
 	c := &cobra.Command{
-		Use:               "radio <artist>",
-		Aliases:           []string{"mix"},
-		Short:             "Play a mix: the artist plus related artists, shuffled",
-		Example:           "  goose radio \"8th Day\"\n  goose radio fried -n 100 --add",
-		Args:              cobra.MinimumNArgs(1),
+		Use:     "radio [artist]",
+		Aliases: []string{"mix"},
+		Short:   "Endless radio: the artist plus related artists, topped up as it plays",
+		Long: `Start an endless radio session seeded by an artist. The first batch mixes
+the artist with related artists from the catalog; whenever the queue runs low,
+the background daemon adds more, drifting through related artists and never
+repeating a track in the session. Playing something else ends it.
+
+  goose radio "8th Day"     start
+  goose radio               what's on
+  goose radio stop          end it (the queued tracks keep playing)`,
+		Example:           "  goose radio \"8th Day\"\n  goose radio stop",
+		Args:              cobra.ArbitraryArgs,
 		ValidArgsFunction: a.completeArtist,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			l, err := a.lib()
 			if err != nil {
 				return err
 			}
+			p := a.out(cmd)
+			if len(args) == 0 {
+				st := l.RadioStatus()
+				if p.json {
+					return p.JSON(st)
+				}
+				if !st.Active {
+					p.println(p.S(p.dim, "radio is off — goose radio <artist>"))
+					return nil
+				}
+				p.println(p.S(p.accent, "📻 ") + "Radio: " + p.S(p.title, bidi.Vis(st.SeedName)) +
+					p.S(p.dim, fmt.Sprintf(" · %d batches · %d tracks · since %s", st.Batches, len(st.Played), ago(st.StartedAt))))
+				return nil
+			}
+			if len(args) == 1 && args[0] == "stop" {
+				l.StopRadio()
+				if p.json {
+					return p.JSON(map[string]bool{"active": false})
+				}
+				p.println(p.S(p.ok, "✓ ") + "radio off (the queue keeps playing)")
+				return nil
+			}
 			ar, err := l.ResolveArtist(strings.Join(args, " "))
 			if err != nil {
 				return err
 			}
-			page, err := l.Artist(a.ctx(cmd), ar.ID, false)
+			seed, songs, err := l.StartRadio(a.ctx(cmd), ar.ID, size)
 			if err != nil {
 				return err
 			}
-			songs, err := l.Radio(a.ctx(cmd), page, size)
-			if err != nil {
-				return err
-			}
-			mode := mpv.Replace
-			if add {
-				mode = mpv.Append
-			}
-			if err := l.Play(library.PlayRequest{Songs: songs, Mode: mode, ArtistID: page.ID, Artist: page.Name, Album: "Radio"}); err != nil {
-				return err
-			}
-			p := a.out(cmd)
 			artists := map[string]bool{}
 			for _, s := range songs {
 				artists[s.Artist] = true
 			}
 			if p.json {
-				return p.JSON(map[string]any{"queued": len(songs), "artists": len(artists), "songs": songs})
+				return p.JSON(map[string]any{"queued": len(songs), "artists": len(artists), "endless": true, "songs": songs})
 			}
-			p.println(p.S(p.accent, "📻 ") + "Radio: " + p.S(p.title, bidi.Vis(page.Name)) +
-				p.S(p.dim, fmt.Sprintf(" (%d tracks from %d artists)", len(songs), len(artists))))
+			p.println(p.S(p.accent, "📻 ") + "Radio: " + p.S(p.title, bidi.Vis(seed.Name)) +
+				p.S(p.dim, fmt.Sprintf(" (%d tracks from %d artists, keeps going)", len(songs), len(artists))))
 			return nil
 		},
 	}
-	c.Flags().IntVarP(&size, "size", "n", 50, "number of tracks")
-	c.Flags().BoolVarP(&add, "add", "a", false, "append to the queue instead of replacing it")
+	c.Flags().IntVarP(&size, "size", "n", 30, "tracks in the first batch")
 	return c
 }
 

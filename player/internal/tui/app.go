@@ -218,7 +218,7 @@ type albumLoaded struct {
 }
 
 func (a *App) Init() tea.Cmd {
-	go a.lib.EnsureScrobbler() // music may already be playing from an earlier session
+	go a.lib.EnsureDaemon() // music may already be playing from an earlier session
 	cmds := []tea.Cmd{a.tick(), a.poll(), textinput.Blink}
 	if a.opts.Artist != "" {
 		if ar, err := a.lib.ResolveArtist(a.opts.Artist); err == nil {
@@ -316,25 +316,18 @@ func (a *App) playArtist(id, name string, mode mpv.Mode, shuffle bool) tea.Cmd {
 	})
 }
 
-// radio starts a mix seeded by an artist.
+// radio starts an endless radio session seeded by an artist.
 func (a *App) radio(id, name string) tea.Cmd {
 	l := a.lib
 	a.notify("tuning radio: "+name+"…", false)
 	return a.job(func() (string, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer cancel()
-		page, err := l.Artist(ctx, id, false)
+		seed, songs, err := l.StartRadio(ctx, id, 0)
 		if err != nil {
 			return "", err
 		}
-		songs, err := l.Radio(ctx, page, 50)
-		if err != nil {
-			return "", err
-		}
-		if err := l.Play(library.PlayRequest{Songs: songs, ArtistID: page.ID, Artist: page.Name, Album: "Radio"}); err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("📻 radio: %s (%d tracks)", page.Name, len(songs)), nil
+		return fmt.Sprintf("📻 radio: %s (%d tracks, keeps going)", seed.Name, len(songs)), nil
 	})
 }
 
@@ -815,6 +808,9 @@ func (a *App) sidebarView(w, h int) string {
 			state = a.spin() + " buffering"
 		}
 		meta := []string{state, fmt.Sprintf("vol %d", int(np.Volume))}
+		if a.scrob != nil && a.scrob.Radio != "" {
+			b = append(b, fg(t.Accent).Render(truncate("📻 radio · "+bidi.Vis(a.scrob.Radio), inner)))
+		}
 		if np.Repeat != "off" {
 			meta = append(meta, "⟳ "+np.Repeat)
 		}
