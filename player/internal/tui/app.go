@@ -26,8 +26,17 @@ import (
 // Options tweak how the TUI starts.
 type Options struct {
 	Theme   string
-	Artist  string // open straight to this artist id/name
 	Version string
+
+	// Where to open (see StartPages and Resolve). All optional.
+	Page    string // home, library, queue, history, downloads, artist, album
+	Artist  string // artist id or name (artist and album pages)
+	Album   string // album title, fragment or number (album page)
+	Tab     string // library tag, artist section, or history tab
+	Filter  string // pre-filled filter / search
+	Catalog string // library: show only this catalog
+
+	start *start // set by Resolve
 }
 
 // page is one screen on the navigation stack.
@@ -90,6 +99,11 @@ func Run(l *library.Lib, opts Options) error {
 	// Themes set every color explicitly, so skip lipgloss's OSC 11 background
 	// query: terminals that never answer it would stall startup for seconds.
 	lipgloss.SetHasDarkBackground(true)
+	if opts.start == nil {
+		if err := opts.Resolve(context.Background(), l); err != nil {
+			return err
+		}
+	}
 	out := &syncWriter{f: os.Stdout}
 	a := newApp(l, opts, out)
 	p := tea.NewProgram(a, tea.WithAltScreen(), tea.WithMouseCellMotion(), tea.WithOutput(out), tea.WithFPS(30))
@@ -220,15 +234,7 @@ type albumLoaded struct {
 func (a *App) Init() tea.Cmd {
 	go a.lib.EnsureDaemon() // music may already be playing from an earlier session
 	cmds := []tea.Cmd{a.tick(), a.poll(), textinput.Blink}
-	if a.opts.Artist != "" {
-		if ar, err := a.lib.ResolveArtist(a.opts.Artist); err == nil {
-			p, cmd := newArtistPage(a, ar.ID, ar.Name)
-			a.push(p)
-			cmds = append(cmds, cmd)
-		} else {
-			a.notify(err.Error(), true)
-		}
-	}
+	cmds = append(cmds, a.openStart())
 	return tea.Batch(cmds...)
 }
 

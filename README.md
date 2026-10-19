@@ -63,6 +63,17 @@ Run `goose`. Start typing to search, `enter` to open, `p` to play.
 | `t` · `v` · `i` · `b` | themes · grid/list · art on/off · sidebar |
 | `?` · `q` | help · quit (music keeps playing; `goose stop` stops it) |
 
+**Start anywhere.** `goose tui` takes a page, and `--tab` / `--filter` /
+`--catalog` to set it up (`goose tui --help` lists every page and tab):
+
+```sh
+goose tui library --tab chasidish          # library, Chasidish tag
+goose tui artist "8th Day" --tab singles   # straight to their singles
+goose tui album "8th Day" lucky            # an album (esc goes back to the artist)
+goose tui history --tab listens
+goose tui --filter shwekey                 # home, search already typed
+```
+
 **Themes.** On [Omarchy](https://omarchy.org) gooseneck wears your desktop
 theme automatically: the `omarchy` theme reads the current Omarchy theme's
 `colors.toml` and repaints **live** when you switch themes with

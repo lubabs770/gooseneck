@@ -159,17 +159,91 @@ Add --json to any listing for machine-readable output.`,
 func (a *app) tuiCmd() *cobra.Command {
 	var opts tui.Options
 	c := &cobra.Command{
-		Use:   "tui",
+		Use:   "tui [page] [artist] [album]",
 		Short: "Open the full-screen interface (the default with no arguments)",
-		Args:  cobra.NoArgs,
-		RunE:  func(cmd *cobra.Command, args []string) error { return a.runTUI(cmd, opts) },
+		Long: `Open the full-screen interface, optionally on a given page and tab.
+
+Pages: ` + strings.Join(tui.StartPages, ", ") + `
+Tabs (--tab, any unique prefix works):
+  library   ` + strings.Join(tui.StartTabs("library"), ", ") + `
+  artist    ` + strings.Join(tui.StartTabs("artist"), ", ") + `
+  history   ` + strings.Join(tui.StartTabs("history"), ", ") + `
+
+--filter pre-fills the search on home, library, downloads, artist and album.`,
+		Example: `  goose tui library --tab chasidish
+  goose tui library --catalog mine --filter avraham
+  goose tui artist "8th Day" --tab singles
+  goose tui album "8th Day" lucky
+  goose tui history --tab listens
+  goose tui --filter shwekey             # home, with the search typed in`,
+		Args: cobra.MaximumNArgs(3),
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			switch {
+			case len(args) == 0:
+				return tui.StartPages, cobra.ShellCompDirectiveNoFileComp
+			case args[0] == "artist" && len(args) == 1, args[0] == "album" && len(args) == 1:
+				return a.completeArtist(cmd, nil, toComplete)
+			case args[0] == "album" && len(args) == 2:
+				return a.completeRelease(cmd, args[1:], toComplete)
+			}
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				opts.Page = args[0]
+			}
+			if rest := args[min(len(args), 1):]; len(rest) > 0 {
+				want := map[string]int{"artist": 1, "album": 2}[opts.Page]
+				if len(rest) > want {
+					return usage(fmt.Errorf("too many arguments for the %s page", args[0]))
+				}
+				if opts.Artist != "" {
+					return usage(errors.New("give the artist either as an argument or with --artist, not both"))
+				}
+				opts.Artist = rest[0]
+				if len(rest) == 2 {
+					if opts.Album != "" {
+						return usage(errors.New("give the album either as an argument or with --album, not both"))
+					}
+					opts.Album = rest[1]
+				}
+			}
+			return a.runTUI(cmd, opts)
+		},
 	}
 	c.Flags().StringVar(&opts.Theme, "theme", "", "theme to start with (see `goose config set theme`)")
 	c.Flags().StringVar(&opts.Artist, "artist", "", "open straight to this artist")
+	c.Flags().StringVar(&opts.Album, "album", "", "with --artist: open this album (title, fragment or number)")
+	c.Flags().StringVar(&opts.Tab, "tab", "", "tab to select: library tag, artist section, or history tab")
+	c.Flags().StringVar(&opts.Filter, "filter", "", "pre-fill the page's filter / search")
+	c.Flags().StringVar(&opts.Catalog, "catalog", "", "library: show only this catalog")
 	c.RegisterFlagCompletionFunc("theme", func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
 		return tui.ThemeNames(), cobra.ShellCompDirectiveNoFileComp
 	})
 	c.RegisterFlagCompletionFunc("artist", a.completeArtist)
+	c.RegisterFlagCompletionFunc("tab", func(cmd *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
+		page := ""
+		if len(args) > 0 {
+			page = args[0]
+		} else if f := cmd.Flag("artist"); f != nil && f.Changed {
+			page = "artist"
+		}
+		if page == "" { // no page yet: offer every page's tabs
+			var all []string
+			for _, p := range []string{"library", "artist", "history"} {
+				all = append(all, tui.StartTabs(p)...)
+			}
+			return all, cobra.ShellCompDirectiveNoFileComp
+		}
+		return tui.StartTabs(page), cobra.ShellCompDirectiveNoFileComp
+	})
+	c.RegisterFlagCompletionFunc("catalog", func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+		cat, err := catalog.LoadAll(a.cfg)
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		return cat.Names(), cobra.ShellCompDirectiveNoFileComp
+	})
 	return c
 }
 
@@ -179,6 +253,13 @@ func (a *app) runTUI(cmd *cobra.Command, opts tui.Options) error {
 		return err
 	}
 	opts.Version = a.version
+	if err := opts.Resolve(a.ctx(cmd), l); err != nil {
+		var se *tui.StartError
+		if errors.As(err, &se) {
+			return usage(err)
+		}
+		return err
+	}
 	return tui.Run(l, opts)
 }
 

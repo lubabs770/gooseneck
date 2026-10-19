@@ -190,6 +190,7 @@ type artistPage struct {
 	tab      int
 	tabs     []artistTab
 	cat      catalog.Artist
+	want     *artistWant // launch section/filter, applied once tabs exist
 }
 
 type artistTab struct {
@@ -222,6 +223,10 @@ func (p *artistPage) setArtist(a *App, ar *ytm.Artist) {
 	p.artist = ar
 	p.name = ar.Name
 	prevTab := p.tab
+	filters := map[string]string{} // keep filters across a background refresh
+	for _, tb := range p.tabs {
+		filters[tb.label] = tb.items.filter
+	}
 	p.tabs = nil
 	rel := func(rs []ytm.Release) []entry {
 		out := make([]entry, len(rs))
@@ -272,6 +277,10 @@ func (p *artistPage) setArtist(a *App, ar *ytm.Artist) {
 		p.tabs = append(p.tabs, artistTab{"Fans also like", c})
 	}
 	p.tab = clamp(prevTab, 0, len(p.tabs)-1)
+	for _, tb := range p.tabs {
+		tb.items.setFilter(filters[tb.label])
+	}
+	p.applyWant(a)
 }
 
 func songEntry(s ytm.Song, numbered bool) entry {

@@ -146,6 +146,13 @@ internal/bidi            Hebrew (RTL) visual reordering for terminals
   through `syncWriter` (between frames), because Bubble Tea drops intermediate
   frames and an upload embedded in a dropped frame is lost. Half-block art is
   the fallback (also what tmux and VHS show).
+- **Launch options** (`start.go`): `goose tui [page] [artist] [album]` +
+  `--tab/--filter/--catalog` fill `tui.Options`; `Options.Resolve` validates
+  and looks up artist/album *before* the screen opens (bad input →
+  `*tui.StartError` → exit 2), then `App.openStart` builds the stack. Artist
+  tabs only exist after load, so the artist page holds a pending `want` that
+  `setArtist` applies. A new page or tab needs an entry in `StartPages` /
+  `tabNames` (and `filterPages` if it's filterable).
 - Themes are OpenCode-style token sets in `theme.go` (`ThemeNames`, `GetTheme`).
   `ResolveThemeName` maps the config value: `auto` (default), `""` and unknown
   names → `omarchy` when Omarchy is installed, else `opencode`.

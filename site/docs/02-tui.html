@@ -15,6 +15,17 @@
 </table>
 <p>Opening an artist shows <strong>Albums</strong>, <strong>Singles &amp; EPs</strong>, <strong>Top songs</strong> and <strong>Related</strong> artists (<kbd>tab</kbd> switches section). <kbd>esc</kbd> goes back.</p>
 
+<h2>Opening on a page</h2>
+<p><code>goose tui</code> can open straight to any page, tab and filter. Tab names match by any unique prefix, and a typo is an error before the screen opens. <code>goose tui --help</code> lists them all.</p>
+<pre data-lang="sh">goose tui library --tab chasidish            # tags: all, famous, chasidish, israeli, …
+goose tui library --catalog mine --filter av # one catalog, filtered
+goose tui artist "8th Day" --tab singles     # albums, singles, songs, related
+goose tui album "8th Day" lucky              # title, fragment or number; esc goes back to the artist
+goose tui history --tab listens              # recent, top, listens
+goose tui downloads --filter shwekey
+goose tui --filter shwekey                   # home, search already typed</pre>
+<p><code>--filter</code> works on home, library, downloads, artist and album pages.</p>
+
 <h2>Keys</h2>
 <table>
   <tr><th>Key</th><th>Action</th></tr>
