@@ -16,6 +16,7 @@ import (
 	"github.com/lubabs770/gooseneck/player/internal/catalog"
 	"github.com/lubabs770/gooseneck/player/internal/config"
 	"github.com/lubabs770/gooseneck/player/internal/mpv"
+	"github.com/lubabs770/gooseneck/player/internal/scrobble"
 	"github.com/lubabs770/gooseneck/player/internal/store"
 	"github.com/lubabs770/gooseneck/player/internal/ytm"
 )
@@ -27,6 +28,8 @@ const (
 
 // Lib bundles everything gooseneck needs at runtime.
 type Lib struct {
+	local *scrobble.Local // opened on first use
+
 	Cfg    config.Config
 	Cat    *catalog.Catalog
 	DB     *store.Store
@@ -48,8 +51,26 @@ func Open(cfg config.Config) (*Lib, error) {
 	return &Lib{Cfg: cfg, Cat: cat, DB: db, YTM: &ytm.Client{}, Player: mpv.New(cfg)}, nil
 }
 
-// Close releases the database.
-func (l *Lib) Close() error { return l.DB.Close() }
+// Close releases the databases.
+func (l *Lib) Close() error {
+	if l.local != nil {
+		l.local.Close()
+	}
+	return l.DB.Close()
+}
+
+// LocalScrobbles opens the local scrobble database (scrobbles.db).
+func (l *Lib) LocalScrobbles() (*scrobble.Local, error) {
+	if l.local != nil {
+		return l.local, nil
+	}
+	lo, err := scrobble.OpenLocal(l.Cfg.ScrobblesPath())
+	if err != nil {
+		return nil, err
+	}
+	l.local = lo
+	return lo, nil
+}
 
 // ---- artists & albums -----------------------------------------------------------
 

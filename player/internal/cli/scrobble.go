@@ -20,7 +20,8 @@ func (a *app) scrobbleCmd() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "scrobble",
 		Short: "Scrobble to ListenBrainz / Last.fm (subcommands: login, logout, flush, on, off)",
-		Long: `Scrobble what you listen to.
+		Long: `Scrobble what you listen to: always to a local log (see 'goose scrobbles'),
+and optionally to ListenBrainz and/or Last.fm.
 
   goose scrobble login listenbrainz      paste a token from listenbrainz.org/settings
   goose scrobble login lastfm            approve gooseneck in your browser
@@ -60,6 +61,17 @@ offline are queued and sent later.`,
 			if a.cfg.LastfmSession != "" {
 				lf = "logged in as " + a.cfg.LastfmUser
 			}
+			localOn := config.On(a.cfg.LocalScrobble, true)
+			local := "off — goose config set local_scrobble true"
+			if localOn {
+				local = a.cfg.ScrobblesPath()
+				if lo, err := l.LocalScrobbles(); err == nil {
+					if t, err := lo.Totals(scrobble.Range{}); err == nil {
+						local = fmt.Sprintf("%d listens · %s", t.Listens, a.cfg.ScrobblesPath())
+					}
+				}
+			}
+			p.row(mark(localOn)+" ", fmt.Sprintf("%-13s", "local")+local, "")
 			p.row(mark(a.cfg.ListenBrainzToken != "")+" ", fmt.Sprintf("%-13s", "listenbrainz")+lb, "")
 			p.row(mark(a.cfg.LastfmSession != "")+" ", fmt.Sprintf("%-13s", "last.fm")+lf, "")
 			if !config.On(a.cfg.Scrobble, true) {

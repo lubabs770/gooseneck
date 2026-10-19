@@ -20,8 +20,9 @@ playback from any shell, script or keybinding.
   half-block art everywhere else).
 - **Offline** — download a track, album or whole artist with yt-dlp
   (`goose download`, or `D` in the TUI); downloaded tracks play from disk.
-- **Scrobbling** — to ListenBrainz and/or Last.fm, by real listening time,
-  even after the TUI is closed; offline listens are queued.
+- **Scrobbling** — always to a private local log (`goose scrobbles`, stats,
+  export), and optionally to ListenBrainz and/or Last.fm, by real listening
+  time, even after the TUI is closed; offline listens are queued.
 - **Your desktop's theme** — on Omarchy it follows the current theme, live.
 - **Fully scriptable** — every action is a `goose` command with `--json`
   output and shell completion for artist and album names.
@@ -124,6 +125,20 @@ goose scrobble                        # status: services, current track, queue
 goose scrobble off | on | flush | logout lastfm
 ```
 
+Every listen that counts is also written to a **local scrobble log** — its own
+SQLite file, `~/.config/gooseneck/scrobbles.db` (`scrobble_db` to move it,
+`local_scrobble = false` to turn it off) — no account needed:
+
+```sh
+goose scrobbles -s today                  # recent listens
+goose scrobbles top artist -s month       # also: track, album
+goose scrobbles stats -s year             # listens, time, artists, days
+goose scrobbles export --format listenbrainz > listens.json   # importable later
+goose scrobbles export --format csv > listens.csv
+```
+
+The TUI's history page (`4`) has a **Listens** tab with the same log.
+
 A small background scrobbler starts with playback and exits when the player
 does, so listens count whether or not the TUI is open. It uses Last.fm's
 rules: a track counts after half its length or 4 minutes of *actual*
@@ -153,6 +168,8 @@ show_help    = true           # key hints in the status bar
 volume       = 80             # starting volume
 player       = "mpv"          # other players work fire-and-forget ($APP overrides)
 player_args  = ["--no-video"]
+local_scrobble = true         # record listens in scrobble_db
+scrobble_db  = ""             # "" = ~/.config/gooseneck/scrobbles.db
 bin_dir      = ""             # directory holding yt-dlp; "" = $PATH
 download_dir = ""             # "" = ~/Music/gooseneck/<Artist>/<Album>/
 artists_json = ""             # use your own catalog file

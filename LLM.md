@@ -68,6 +68,12 @@ internal/bidi            Hebrew (RTL) visual reordering for terminals
   emits NowPlaying / Scrobble events by wall-clock listening time (½ track or
   4 min, ≥30s tracks; gaps >15s ignored; repeat-one detected by the position
   jumping back to the start).
+- `scrobble.Local` is a third `Service` backed by its own SQLite file
+  (`Cfg.ScrobblesPath()`, default `<config dir>/scrobbles.db`, deliberately
+  separate from cache.db). On by default (`local_scrobble`), so the daemon runs
+  with any playback. It also answers queries (`Recent`, `Top`, `Totals`) for
+  `goose scrobbles` and the TUI history "Listens" tab. Inserts are idempotent
+  on (video_id, listened_at).
 - `ListenBrainz` (token) and `LastFM` (key/secret + session, md5-signed calls)
   implement `scrobble.Service`. `GOOSENECK_LISTENBRAINZ_URL` overrides the
   endpoint for tests.

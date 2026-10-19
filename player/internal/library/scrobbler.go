@@ -33,6 +33,11 @@ func (l *Lib) ScrobbleServices() []scrobble.Service {
 		return nil
 	}
 	var out []scrobble.Service
+	if config.On(c.LocalScrobble, true) {
+		if lo, err := l.LocalScrobbles(); err == nil {
+			out = append(out, lo)
+		}
+	}
 	if c.ListenBrainzToken != "" {
 		out = append(out, &scrobble.ListenBrainz{Token: c.ListenBrainzToken, Endpoint: os.Getenv("GOOSENECK_LISTENBRAINZ_URL")})
 	}

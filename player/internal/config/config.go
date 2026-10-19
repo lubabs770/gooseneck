@@ -34,7 +34,9 @@ type Config struct {
 	DownloadDir string   `toml:"download_dir"` // where downloads go; "" = ~/Music/gooseneck
 
 	// Scrobbling (see `goose scrobble`). Secrets: the file is saved 0600.
-	Scrobble          *bool  `toml:"scrobble"`           // master switch (default on; needs a login)
+	Scrobble          *bool  `toml:"scrobble"`           // master switch (default on)
+	LocalScrobble     *bool  `toml:"local_scrobble"`     // record listens in scrobble_db (default on)
+	ScrobbleDB        string `toml:"scrobble_db"`        // "" = <config dir>/scrobbles.db
 	ListenBrainzToken string `toml:"listenbrainz_token"` // https://listenbrainz.org/settings/
 	LastfmKey         string `toml:"lastfm_api_key"`     // https://www.last.fm/api/account/create
 	LastfmSecret      string `toml:"lastfm_api_secret"`
@@ -75,17 +77,18 @@ func On(p *bool, def bool) bool {
 // Default returns the config used when no file exists.
 func Default() Config {
 	return Config{
-		Player:     "mpv",
-		PlayerArgs: []string{"--no-video"},
-		ArtistsURL: DefaultArtistsURL,
-		Theme:      "auto", // Omarchy's theme when installed, else opencode
-		View:       "grid",
-		ShowHelp:   BoolPtr(true),
-		Caret:      BoolPtr(true),
-		Thumbnails: BoolPtr(true),
-		Sidebar:    BoolPtr(true),
-		Scrobble:   BoolPtr(true),
-		Volume:     80,
+		Player:        "mpv",
+		PlayerArgs:    []string{"--no-video"},
+		ArtistsURL:    DefaultArtistsURL,
+		Theme:         "auto", // Omarchy's theme when installed, else opencode
+		View:          "grid",
+		ShowHelp:      BoolPtr(true),
+		Caret:         BoolPtr(true),
+		Thumbnails:    BoolPtr(true),
+		Sidebar:       BoolPtr(true),
+		Scrobble:      BoolPtr(true),
+		LocalScrobble: BoolPtr(true),
+		Volume:        80,
 	}
 }
 
@@ -136,6 +139,18 @@ func (c Config) Downloads() string {
 	return filepath.Join(music, "gooseneck")
 }
 
+// ScrobblesPath is the local scrobble database (separate from cache.db).
+func (c Config) ScrobblesPath() string {
+	if c.ScrobbleDB != "" {
+		if strings.HasPrefix(c.ScrobbleDB, "~/") {
+			home, _ := os.UserHomeDir()
+			return filepath.Join(home, c.ScrobbleDB[2:])
+		}
+		return c.ScrobbleDB
+	}
+	return filepath.Join(Dir(), "scrobbles.db")
+}
+
 // LegacyLogPath is the pre-SQLite play history file (imported once).
 func LegacyLogPath() string { return filepath.Join(Dir(), "logs.json") }
 
@@ -174,7 +189,7 @@ func normalize(cfg Config) Config {
 	if cfg.Player == "" {
 		cfg.Player = d.Player
 	}
-	for _, p := range []**bool{&cfg.ShowHelp, &cfg.Caret, &cfg.Thumbnails, &cfg.Sidebar, &cfg.Scrobble} {
+	for _, p := range []**bool{&cfg.ShowHelp, &cfg.Caret, &cfg.Thumbnails, &cfg.Sidebar, &cfg.Scrobble, &cfg.LocalScrobble} {
 		if *p == nil {
 			*p = BoolPtr(true)
 		}

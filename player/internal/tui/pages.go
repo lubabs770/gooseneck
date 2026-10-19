@@ -12,6 +12,7 @@ import (
 	"github.com/lubabs770/gooseneck/player/internal/catalog"
 	"github.com/lubabs770/gooseneck/player/internal/library"
 	"github.com/lubabs770/gooseneck/player/internal/mpv"
+	"github.com/lubabs770/gooseneck/player/internal/scrobble"
 	"github.com/lubabs770/gooseneck/player/internal/store"
 	"github.com/lubabs770/gooseneck/player/internal/ytm"
 )
@@ -731,12 +732,15 @@ func (p *queuePage) view(a *App, w, h int) string {
 
 type historyPage struct {
 	items *collection
-	top   bool
+	tab   int // 0 recent plays, 1 top artists, 2 listens (local scrobbles)
 }
 
+var historyTabs = []string{"Recent", "Top artists", "Listens"}
+
 type historyLoaded struct {
-	plays []store.Play
-	top   []store.ArtistStat
+	plays   []store.Play
+	top     []store.ArtistStat
+	listens []scrobble.Listen
 }
 
 func newHistoryPage(a *App) (*historyPage, tea.Cmd) {
@@ -749,7 +753,11 @@ func (p *historyPage) load(a *App) tea.Cmd {
 	return func() tea.Msg {
 		h, _ := l.DB.History(200)
 		top, _ := l.DB.TopArtists(50)
-		return historyLoaded{h, top}
+		var ls []scrobble.Listen
+		if lo, err := l.LocalScrobbles(); err == nil {
+			ls, _ = lo.Recent(scrobble.Range{}, 500)
+		}
+		return historyLoaded{h, top, ls}
 	}
 }
 
@@ -757,20 +765,29 @@ func (p *historyPage) title() string     { return "History" }
 func (p *historyPage) mode() string      { return "HISTORY" }
 func (p *historyPage) coll() *collection { return p.items }
 func (p *historyPage) hints(a *App) []hint {
-	return []hint{{"enter", "open artist"}, {"tab", "recent/top"}}
+	return []hint{{"enter", "open artist"}, {"tab", "recent / top / listens"}}
 }
 
 func (p *historyPage) update(a *App, msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case historyLoaded:
 		var items []entry
-		if p.top {
+		p.items.numbered = false
+		switch p.tab {
+		case 2:
+			for i, l := range msg.listens {
+				id := l.VideoID
+				items = append(items, entry{key: fmt.Sprint(i), title: l.Track, sub: l.Artist,
+					right: agoShort(l.StartedAt), data: listenRef{id, l.Artist}})
+			}
+			p.items.empty = "No listens yet. A track counts once it has played halfway (or 4 minutes)."
+		case 1:
 			for i, s := range msg.top {
 				items = append(items, entry{key: s.ArtistID + s.Artist, title: s.Artist, num: fmt.Sprint(i + 1),
 					sub: fmt.Sprintf("%d plays · %d tracks", s.Plays, s.Tracks), right: agoShort(s.Last), data: s.ArtistID})
 			}
 			p.items.numbered = true
-		} else {
+		default:
 			for i, e := range msg.plays {
 				title := e.Artist
 				sub := ""
@@ -784,7 +801,6 @@ func (p *historyPage) update(a *App, msg tea.Msg) tea.Cmd {
 				}
 				items = append(items, entry{key: fmt.Sprint(i), title: title, sub: sub, right: agoShort(e.At), data: e.ArtistID})
 			}
-			p.items.numbered = false
 		}
 		p.items.set(items)
 	case tea.MouseMsg:
@@ -796,11 +812,24 @@ func (p *historyPage) update(a *App, msg tea.Msg) tea.Cmd {
 		}
 		switch k {
 		case "tab", "shift+tab":
-			p.top = !p.top
+			d := 1
+			if k == "shift+tab" {
+				d = len(historyTabs) - 1
+			}
+			p.tab = (p.tab + d) % len(historyTabs)
 			p.items.cursor, p.items.top = 0, 0
 			return p.load(a)
 		case "enter":
 			if e, ok := p.items.selected(); ok {
+				if ref, ok := e.data.(listenRef); ok { // a listen: open its artist via the track's metadata
+					if t, ok := a.lib.DB.Track(ref.videoID); ok && t.ArtistID != "" {
+						pg, cmd := newArtistPage(a, t.ArtistID, t.Artist)
+						a.push(pg)
+						return cmd
+					}
+					a.notify("artist for "+ref.artist+" isn't known", true)
+					return nil
+				}
 				if id, _ := e.data.(string); id != "" {
 					name := id
 					if ar, ok := a.lib.Cat.Get(id); ok {
@@ -818,12 +847,19 @@ func (p *historyPage) update(a *App, msg tea.Msg) tea.Cmd {
 
 func (p *historyPage) view(a *App, w, h int) string {
 	t := a.theme
-	recent, top := t.primary().Bold(true).Render("Recent"), t.muted().Render("Top artists")
-	if p.top {
-		recent, top = t.muted().Render("Recent"), t.primary().Bold(true).Render("Top artists")
+	var tabs []string
+	for i, name := range historyTabs {
+		if i == p.tab {
+			tabs = append(tabs, t.primary().Bold(true).Render(name))
+		} else {
+			tabs = append(tabs, t.muted().Render(name))
+		}
 	}
-	return recent + "   " + top + "\n" + t.subtle().Render(strings.Repeat("─", w)) + "\n" + p.items.view(a, w, h-2)
+	return strings.Join(tabs, "   ") + "\n" + t.subtle().Render(strings.Repeat("─", w)) + "\n" + p.items.view(a, w, h-2)
 }
+
+// listenRef identifies a local listen for opening its artist.
+type listenRef struct{ videoID, artist string }
 
 func agoShort(t time.Time) string {
 	d := time.Since(t)
