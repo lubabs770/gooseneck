@@ -64,6 +64,10 @@ Run `goose`. Start typing to search, `enter` to open, `p` to play.
 | `t` · `v` · `i` · `b` | themes · grid/list · art on/off · sidebar |
 | `?` · `q` | help · quit (music keeps playing; `goose stop` stops it) |
 
+**Mouse.** Click to select, double-click to open (or play from there), and
+scroll with the wheel. Tabs and tag chips switch on click, the breadcrumbs in
+the status bar go back, and clicking a progress bar seeks.
+
 **Start anywhere.** `goose tui` takes a page, and `--tab` / `--filter` /
 `--catalog` to set it up (`goose tui --help` lists every page and tab):
 

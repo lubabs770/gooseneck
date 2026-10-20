@@ -358,6 +358,10 @@ var helpSections = []helpSection{
 		{"ctrl+p :", "commands"}, {"t", "themes"}, {"v", "grid / list"}, {"i", "art on/off"},
 		{"b", "sidebar"}, {"q", "quit (music keeps going)"},
 	}},
+	{"Mouse", [][2]string{
+		{"click", "select"}, {"dbl-click", "open / play from here"}, {"wheel", "scroll"},
+		{"tab, chip", "switch to it"}, {"crumb", "go back there"}, {"progress", "seek"},
+	}},
 }
 
 func (h *helpDialog) view(a *App) string {

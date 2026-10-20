@@ -154,6 +154,17 @@ internal/selfupdate      `goose upgrade`: GitHub release lookup, checksum check,
   tabs only exist after load, so the artist page holds a pending `want` that
   `setArtist` applies. A new page or tab needs an entry in `StartPages` /
   `tabNames` (and `filterPages` if it's filterable).
+- **Mouse** (`mouse.go`, bubblezone): views wrap clickable things in
+  `a.mark(id, s)`; `View()` ends with `a.zones.Scan(frame)`, which strips the
+  markers and records each zone's screen box. `App.mouse` matches a left click
+  against: `home` / `crumb:N` (status bar), `seek:side` / `seek:line`,
+  `prompt`, then the page's own `clicker` (tabs, chips), then the collection
+  (`item:<collection id>:<slot>`, marked in `drawItem`). Double click =
+  `enter` sent to the page. Wheel events still go to the page
+  (`scrollMouse`). Dialogs ignore the mouse. Markers are zero-width CSI
+  sequences that survive `paint`/`truncate`; a zone cut off by truncation or
+  covered by `overlay` just isn't clickable. Test with `mouseApp` +
+  `clickZone` in `mouse_test.go`.
 - Themes are OpenCode-style token sets in `theme.go` (`ThemeNames`, `GetTheme`).
   `ResolveThemeName` maps the config value: `auto` (default), `""` and unknown
   names → `omarchy` when Omarchy is installed, else `opencode`.

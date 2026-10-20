@@ -76,9 +76,7 @@ func (p *libraryPage) update(a *App, msg tea.Msg) tea.Cmd {
 			if k == "shift+tab" {
 				d = -1
 			}
-			p.tag = (p.tag + d + len(catalog.Tags) + 1) % (len(catalog.Tags) + 1)
-			p.items.cursor, p.items.top = 0, 0
-			p.load(a)
+			p.setTag(a, (p.tag+d+len(catalog.Tags)+1)%(len(catalog.Tags)+1))
 		case "enter":
 			return openArtistEntry(a, p.items)
 		case "p", "s", "a":
@@ -124,6 +122,21 @@ func (p *libraryPage) update(a *App, msg tea.Msg) tea.Cmd {
 	return nil
 }
 
+func (p *libraryPage) setTag(a *App, tag int) {
+	p.tag = tag
+	p.items.cursor, p.items.top = 0, 0
+	p.load(a)
+}
+
+// click: a tag chip switches the tag.
+func (p *libraryPage) click(a *App, msg tea.MouseMsg) (tea.Cmd, bool) {
+	i, ok := a.hitIndex("libtag:%d", len(catalog.Tags)+1, msg)
+	if ok && i != p.tag {
+		p.setTag(a, i)
+	}
+	return nil, ok
+}
+
 func openArtistEntry(a *App, c *collection) tea.Cmd {
 	e, ok := c.selected()
 	if !ok {
@@ -162,11 +175,11 @@ func (p *libraryPage) view(a *App, w, h int) string {
 		return out
 	}()...)
 	for i, l := range labels {
+		st := t.muted()
 		if i == p.tag {
-			chips = append(chips, t.onPrimary().Render(" "+l+" "))
-		} else {
-			chips = append(chips, t.muted().Render(" "+l+" "))
+			st = t.onPrimary()
 		}
+		chips = append(chips, a.mark(fmt.Sprintf("libtag:%d", i), st.Render(" "+l+" ")))
 	}
 	chipLine := truncate(strings.Join(chips, " "), w)
 	title := t.bold().Render("Library")
@@ -400,6 +413,15 @@ func (p *artistPage) update(a *App, msg tea.Msg) tea.Cmd {
 	return nil
 }
 
+// click: a section tab switches to it.
+func (p *artistPage) click(a *App, msg tea.MouseMsg) (tea.Cmd, bool) {
+	i, ok := a.hitIndex("arttab:%d", len(p.tabs), msg)
+	if ok {
+		p.tab = i
+	}
+	return nil, ok
+}
+
 func (p *artistPage) act(a *App, c *collection, e entry, k string) tea.Cmd {
 	mode := map[string]mpv.Mode{"a": mpv.Append, "A": mpv.Next}[k]
 	switch d := e.data.(type) {
@@ -518,11 +540,11 @@ func (p *artistPage) view(a *App, w, h int) string {
 	var tabs []string
 	for i, tb := range p.tabs {
 		label := fmt.Sprintf("%s %d", tb.label, len(tb.items.items))
+		st := t.muted()
 		if i == p.tab {
-			tabs = append(tabs, t.primary().Bold(true).Render(label))
-		} else {
-			tabs = append(tabs, t.muted().Render(label))
+			st = t.primary().Bold(true)
 		}
+		tabs = append(tabs, a.mark(fmt.Sprintf("arttab:%d", i), st.Render(label)))
 	}
 	tabLine := strings.Join(tabs, t.subtle().Render("   "))
 	underline := t.subtle().Render(strings.Repeat("─", w))
@@ -864,9 +886,7 @@ func (p *historyPage) update(a *App, msg tea.Msg) tea.Cmd {
 			if k == "shift+tab" {
 				d = len(historyTabs) - 1
 			}
-			p.tab = (p.tab + d) % len(historyTabs)
-			p.items.cursor, p.items.top = 0, 0
-			return p.load(a)
+			return p.setTab(a, (p.tab+d)%len(historyTabs))
 		case "enter":
 			if e, ok := p.items.selected(); ok {
 				if ref, ok := e.data.(listenRef); ok { // a listen: open its artist via the track's metadata
@@ -897,13 +917,28 @@ func (p *historyPage) view(a *App, w, h int) string {
 	t := a.theme
 	var tabs []string
 	for i, name := range historyTabs {
+		st := t.muted()
 		if i == p.tab {
-			tabs = append(tabs, t.primary().Bold(true).Render(name))
-		} else {
-			tabs = append(tabs, t.muted().Render(name))
+			st = t.primary().Bold(true)
 		}
+		tabs = append(tabs, a.mark(fmt.Sprintf("histtab:%d", i), st.Render(name)))
 	}
 	return strings.Join(tabs, "   ") + "\n" + t.subtle().Render(strings.Repeat("─", w)) + "\n" + p.items.view(a, w, h-2)
+}
+
+func (p *historyPage) setTab(a *App, tab int) tea.Cmd {
+	p.tab = tab
+	p.items.cursor, p.items.top = 0, 0
+	return p.load(a)
+}
+
+// click: a tab switches to it.
+func (p *historyPage) click(a *App, msg tea.MouseMsg) (tea.Cmd, bool) {
+	i, ok := a.hitIndex("histtab:%d", len(historyTabs), msg)
+	if !ok || i == p.tab {
+		return nil, ok
+	}
+	return p.setTab(a, i), true
 }
 
 // listenRef identifies a local listen for opening its artist.

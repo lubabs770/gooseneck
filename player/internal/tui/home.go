@@ -249,7 +249,7 @@ func (a *App) homePrompt(w int) string {
 	for i, l := range lines {
 		lines[i] = barSt.Render("┃") + "  " + l
 	}
-	box := paint(strings.Join(lines, "\n"), t.Element, w, 3)
+	box := a.mark("prompt", paint(strings.Join(lines, "\n"), t.Element, w, 3))
 	var hs []hint
 	if a.searching {
 		hs = []hint{{"enter", "open"}, {"↑↓", "select"}, {"esc", "shortcuts"}}

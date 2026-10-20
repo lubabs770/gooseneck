@@ -2,6 +2,7 @@ package tui
 
 import (
 	"strings"
+	"sync/atomic"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/lubabs770/gooseneck/player/internal/bidi"
@@ -36,13 +37,24 @@ type collection struct {
 	numbered bool // show the num gutter in list view
 	empty    string
 
-	top      int // first visible row
-	cols     int // grid columns at last render
-	pageRows int // rows visible at last render
+	top      int   // first visible row
+	cols     int   // grid columns at last render
+	pageRows int   // rows visible at last render
+	drawn    []int // vis indices drawn at last render, in zone-slot order (mouse.go)
+	id       int64 // names this collection's click zones
 }
 
+var collectionIDs atomic.Int64
+
 func newCollection(canGrid, images bool, empty string) *collection {
-	return &collection{canGrid: canGrid, grid: canGrid, images: images, empty: empty, cols: 1}
+	return &collection{canGrid: canGrid, grid: canGrid, images: images, empty: empty, cols: 1,
+		id: collectionIDs.Add(1)}
+}
+
+// drawItem records that vis index i was drawn and marks block as its zone.
+func (c *collection) drawItem(a *App, i int, block string) string {
+	c.drawn = append(c.drawn, i)
+	return a.mark(c.zone(len(c.drawn)-1), block)
 }
 
 // set replaces the items, keeping the cursor on the same key when possible.
@@ -179,6 +191,7 @@ func (c *collection) gridGeom(a *App, w, h int) (cols, cardW, imgW, imgH int) {
 
 func (c *collection) view(a *App, w, h int) string {
 	t := a.theme
+	c.drawn = c.drawn[:0]
 	if len(c.vis) == 0 {
 		msg := c.empty
 		if c.filter != "" {
@@ -225,7 +238,7 @@ func (c *collection) viewGrid(a *App, w, h int) string {
 				cards = append(cards, blankBlock(cardW, cardH))
 				continue
 			}
-			cards = append(cards, c.card(a, c.items[c.vis[i]], i == c.cursor, cardW, imgW, imgH))
+			cards = append(cards, c.drawItem(a, i, c.card(a, c.items[c.vis[i]], i == c.cursor, cardW, imgW, imgH)))
 		}
 		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, cards...))
 	}
@@ -340,7 +353,7 @@ func (c *collection) viewList(a *App, w, h int) string {
 			text := lipgloss.JoinVertical(lipgloss.Left, l1, l2)
 			gap := bg.Render(" ")
 			block := lipgloss.JoinHorizontal(lipgloss.Top, bar+"\n"+bar, img, gap+"\n"+gap, text)
-			lines = append(lines, block)
+			lines = append(lines, c.drawItem(a, i, block))
 			continue
 		}
 		subW := 0
@@ -356,7 +369,7 @@ func (c *collection) viewList(a *App, w, h int) string {
 			row += bg.Render("  ") + fg(t.Muted).Inherit(bg).Render(padRight(bidi.Vis(e.sub), subW))
 		}
 		row += bg.Render("  ") + rightTxt
-		lines = append(lines, row)
+		lines = append(lines, c.drawItem(a, i, row))
 	}
 	out := strings.Join(lines, "\n")
 	if scroll {

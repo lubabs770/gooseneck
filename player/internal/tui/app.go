@@ -16,6 +16,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	zone "github.com/lrstanley/bubblezone"
 	"github.com/lubabs770/gooseneck/player/internal/bidi"
 	"github.com/lubabs770/gooseneck/player/internal/config"
 	"github.com/lubabs770/gooseneck/player/internal/library"
@@ -94,6 +95,9 @@ type App struct {
 	dl       dlState                  // background downloads
 	quitWarn bool                     // q pressed once while downloads were running
 	keys     keyMap                   // [keys] overrides from config.toml
+
+	zones *zone.Manager // clickable regions of the last frame (mouse.go)
+	click lastClick     // previous click, for double clicks
 }
 
 // Run starts the TUI and blocks until it exits.
@@ -108,6 +112,7 @@ func Run(l *library.Lib, opts Options) error {
 	}
 	out := &syncWriter{f: os.Stdout}
 	a := newApp(l, opts, out)
+	defer a.zones.Close()
 	p := tea.NewProgram(a, tea.WithAltScreen(), tea.WithMouseCellMotion(), tea.WithOutput(out), tea.WithFPS(30))
 	_, err := p.Run()
 	if a.img.kitty {
@@ -132,6 +137,7 @@ func newApp(l *library.Lib, opts Options, out *syncWriter) *App {
 		showImages: config.On(l.Cfg.Thumbnails, true),
 		sidebar:    config.On(l.Cfg.Sidebar, true),
 		showHelp:   config.On(l.Cfg.ShowHelp, true),
+		zones:      zone.New(),
 	}
 	var bad []string
 	a.keys, bad = newKeyMap(l.Cfg.KeyMap)
@@ -174,6 +180,18 @@ func (a *App) pop() {
 		return // already home
 	}
 	a.stack = a.stack[:len(a.stack)-1]
+	a.blurSearch()
+	if _, ok := a.top().(*homePage); ok {
+		a.focusSearch()
+	}
+}
+
+// popTo goes back to stack[i], dropping everything above it.
+func (a *App) popTo(i int) {
+	if i < 0 || i >= len(a.stack)-1 {
+		return
+	}
+	a.stack = a.stack[:i+1]
 	a.blurSearch()
 	if _, ok := a.top().(*homePage); ok {
 		a.focusSearch()
@@ -412,7 +430,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.MouseMsg:
 		if a.dialog == nil {
-			cmds = append(cmds, a.top().update(a, msg))
+			cmds = append(cmds, a.mouse(msg))
 		}
 
 	case tea.KeyMsg:
@@ -654,7 +672,7 @@ func (a *App) View() string {
 		x, y := center(box, a.w, a.h)
 		frame = overlay(frame, box, x, y)
 	}
-	return frame
+	return a.zones.Scan(frame)
 }
 
 func (a *App) filterActive() bool {
@@ -687,7 +705,7 @@ func (a *App) prompt(w int) string {
 	for i, l := range lines {
 		lines[i] = barSt.Render("┃") + "  " + l
 	}
-	box := paint(strings.Join(lines, "\n"), t.Element, w, 3)
+	box := a.mark("prompt", paint(strings.Join(lines, "\n"), t.Element, w, 3))
 	n := ""
 	if c := pageCollection(a.top()); c != nil {
 		n = fmt.Sprintf("%d matches", c.len())
@@ -714,7 +732,7 @@ func (a *App) nowLine(w int) string {
 	}
 	times := t.muted().Render(fmt.Sprintf(" %s / %s", ytm.FormatDuration(int(np.Pos)), ytm.FormatDuration(int(np.Duration))))
 	barW := clamp(w/3, 10, 40)
-	right := progress(t, np.Pos, np.Duration, barW) + times
+	right := a.mark("seek:line", progress(t, np.Pos, np.Duration, barW)) + times
 	return spread(left, right, w)
 }
 
@@ -745,10 +763,10 @@ func (a *App) statusBar() string {
 	t := a.theme
 	badge := t.onPrimary().Render(" " + a.top().mode() + " ")
 	var crumbs []string
-	for _, p := range a.stack[1:] {
-		crumbs = append(crumbs, bidi.Vis(p.title()))
+	for i, p := range a.stack[1:] {
+		crumbs = append(crumbs, a.mark(fmt.Sprintf("crumb:%d", i+1), bidi.Vis(p.title())))
 	}
-	left := badge + " " + fg(t.Text).Bold(true).Render(" gooseneck")
+	left := a.mark("home", badge+" "+fg(t.Text).Bold(true).Render(" gooseneck"))
 	if len(crumbs) > 0 {
 		left += t.muted().Render(" › " + strings.Join(crumbs, " › "))
 	}
@@ -822,7 +840,7 @@ func (a *App) sidebarView(w, h int) string {
 		if np.Track.Album != "" && np.Track.Album != title {
 			b = append(b, t.muted().Render(truncate(bidi.Vis(np.Track.Album), inner)))
 		}
-		b = append(b, "", progress(t, np.Pos, np.Duration, inner),
+		b = append(b, "", a.mark("seek:side", progress(t, np.Pos, np.Duration, inner)),
 			spread(t.muted().Render(ytm.FormatDuration(int(np.Pos))), t.muted().Render(ytm.FormatDuration(int(np.Duration))), inner))
 		state := "▶ playing"
 		if np.Paused {
