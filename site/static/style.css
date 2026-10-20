@@ -425,3 +425,5 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; text-decoration: none; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .reveal { opacity: 1; transform: none; }
 }
+
+.term video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; }

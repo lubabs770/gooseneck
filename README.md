@@ -9,8 +9,6 @@ playback from any shell, script or keybinding.
 
 [![Build player](https://github.com/lubabs770/gooseneck/actions/workflows/build-player.yml/badge.svg)](https://github.com/lubabs770/gooseneck/actions/workflows/build-player.yml)
 
-![gooseneck TUI demo](demo.gif)
-
 - **Instant discographies** — albums, singles & EPs, top songs, bios and
   related artists straight from YouTube Music, cached locally (works offline once
   visited).
@@ -90,8 +88,6 @@ for a live-preview picker (this session only), or `goose config set theme <name>
 to keep one; `auto` goes back to following Omarchy. The CLI's colours follow the same theme.
 
 ## The CLI
-
-![gooseneck CLI demo](cli.gif)
 
 ```sh
 goose search fried                        # fuzzy artist search (--tag chasidish, -n 5)
@@ -274,7 +270,7 @@ tests and cross-compiles linux/macOS/windows × amd64/arm64 on every change and
 publishes a release for `v*` tags. Architecture notes for contributors (and AI
 agents) are in [`LLM.md`](LLM.md).
 
-The GIFs above are recorded with [VHS](https://github.com/charmbracelet/vhs)
+The demo GIFs on the website are recorded with [VHS](https://github.com/charmbracelet/vhs)
 against an isolated, pre-warmed demo home (your own config and history never
 appear):
 
