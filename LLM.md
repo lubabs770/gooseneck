@@ -223,6 +223,17 @@ username, hostname, home path or the user's real history in a recording. VHS's
 browser terminal lags on heavy half-block output, so give image-heavy screens a
 few seconds before moving on. Re-render whenever the UI changes visibly.
 
+`demo/omarchy-showcase.sh` records the website's hero video
+(`site/static/showcase.mp4`) live on an Omarchy desktop: it opens goose from
+the apps menu, drives it with `wtype`, switches Omarchy themes while music
+plays, then runs the CLI in a terminal, recording with Omarchy's screen
+recorder. It runs on a demo home (`~/.cache/goose-showcase`) and swaps the Goose
+menu entry and zsh prompt for the run, restoring both on exit. Dry-run any
+change with `DRIVER=tmux demo/omarchy-showcase.sh` first: same keys into a
+hidden tmux session, with a text snapshot per step in
+`/tmp/goose-showcase-test/snaps.txt`. The script presses keys blind, so a
+change in TUI focus rules (e.g. home grabbing the search box) breaks it.
+
 ## CI & releases
 
 - `fetch-artists.yml` — daily cron refreshes `artists.json` (commits to main;
