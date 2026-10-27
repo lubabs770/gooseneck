@@ -14,8 +14,9 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/junegunn/fzf/src/algo"
+	"github.com/junegunn/fzf/src/util"
 	"github.com/lubabs770/gooseneck/player/internal/config"
-	"github.com/sahilm/fuzzy"
 )
 
 // Artist mirrors one record in artists.json. Unknown fields are ignored, so new
@@ -263,7 +264,12 @@ func (c *Catalog) Search(query string, tag *Tag) []Artist {
 	return Rank(query, pool, func(a Artist) string { return a.Name })
 }
 
-// Rank orders items by how well name(item) matches query. Exact and prefix
+// fzf's matcher keeps its character tables in package state; "default" is
+// the scheme fzf itself uses for plain text.
+func init() { algo.Init("default") }
+
+// Rank orders items by how well name(item) matches query, scored by fzf's
+// matcher (FuzzyMatchV2, the one the fzf binary uses). Exact and prefix
 // matches beat fuzzy subsequence matches, so "Avi" ranks "Avi Perets" above
 // "Shlomo Gavriel".
 func Rank[T any](query string, items []T, name func(T) string) []T {
@@ -277,9 +283,15 @@ func Rank[T any](query string, items []T, name func(T) string) []T {
 		score int
 	}
 	var res []scored
-	for _, m := range fuzzy.Find(q, names) {
+	pattern := []rune(q)
+	slab := util.MakeSlab(100*1024, 2048) // fzf's own per-matcher sizes
+	for i, n := range names {
+		chars := util.ToChars([]byte(n))
+		m, _ := algo.FuzzyMatchV2(false, true, true, &chars, pattern, false, slab)
+		if m.Start < 0 {
+			continue
+		}
 		s := m.Score
-		n := names[m.Index]
 		switch {
 		case n == q:
 			s += 100000
@@ -291,7 +303,7 @@ func Rank[T any](query string, items []T, name func(T) string) []T {
 			s += 10000
 		}
 		s -= len(n) // shorter names win ties
-		res = append(res, scored{m.Index, s})
+		res = append(res, scored{i, s})
 	}
 	sort.SliceStable(res, func(a, b int) bool { return res[a].score > res[b].score })
 	out := make([]T, len(res))
