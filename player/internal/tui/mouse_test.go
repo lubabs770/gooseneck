@@ -163,3 +163,24 @@ func TestMouseArtistTabs(t *testing.T) {
 		t.Fatalf("tab = %d, want 1", p.tab)
 	}
 }
+
+// Picking a search result with enter clears the search: the artist page
+// opens unfiltered and home is empty again on the way back.
+func TestEnterClearsSearch(t *testing.T) {
+	a := mouseApp(t)
+	a.focusSearch()
+	a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("artist 03")})
+	a.View() // home rebuilds its results while drawing
+	a.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	ar, ok := a.top().(*artistPage)
+	if !ok || ar.name != "Artist 03" {
+		t.Fatalf("enter opened %T", a.top())
+	}
+	if ar.filterText() != "" || a.input.Value() != "" {
+		t.Fatalf("search leaked: page filter %q, input %q", ar.filterText(), a.input.Value())
+	}
+	a.pop()
+	if f := a.top().(filterable).filterText(); f != "" {
+		t.Fatalf("home still filtered by %q", f)
+	}
+}
