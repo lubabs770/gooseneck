@@ -207,3 +207,25 @@ func TestKeyMapRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+func TestDirPrefersXDGThenExisting(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GOOSENECK_HOME", "")
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", "")
+	want := filepath.Join(home, ".config", "gooseneck")
+	if got := Dir(); got != want {
+		t.Fatalf("fresh install: Dir() = %q, want %q", got, want)
+	}
+	xdg := filepath.Join(home, "xdg")
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+	if got := Dir(); got != filepath.Join(xdg, "gooseneck") {
+		t.Fatalf("XDG set, nothing exists: Dir() = %q", got)
+	}
+	if err := os.MkdirAll(want, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if got := Dir(); got != want {
+		t.Fatalf("existing ~/.config dir: Dir() = %q, want %q", got, want)
+	}
+}
