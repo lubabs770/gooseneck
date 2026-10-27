@@ -171,6 +171,12 @@ func (a *App) setTheme(name string) {
 func (a *App) top() page { return a.stack[len(a.stack)-1] }
 
 func (a *App) push(p page) {
+	// Opening something ends the search that found it: clear it so it neither
+	// filters the new page nor is still typed when you come back.
+	if f, ok := a.top().(filterable); ok {
+		f.setFilter("")
+	}
+	a.input.SetValue("")
 	a.stack = append(a.stack, p)
 	a.blurSearch()
 }
