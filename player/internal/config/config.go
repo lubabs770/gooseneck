@@ -123,16 +123,49 @@ func Default() Config {
 }
 
 // Dir is the config/data directory. $GOOSENECK_HOME overrides it (handy for
-// demos and tests); otherwise it is <user config dir>/gooseneck.
+// demos and tests). Otherwise the first existing of DirCandidates wins, and a
+// fresh install gets the first one.
 func Dir() string {
 	if d := os.Getenv("GOOSENECK_HOME"); d != "" {
 		return d
 	}
-	base, err := os.UserConfigDir()
-	if err != nil || base == "" {
-		base = filepath.Join(os.Getenv("HOME"), ".config")
+	dirs := DirCandidates()
+	for _, d := range dirs {
+		if fi, err := os.Stat(d); err == nil && fi.IsDir() {
+			return d
+		}
 	}
-	return filepath.Join(base, "gooseneck")
+	return dirs[0]
+}
+
+// DirCandidates lists the tried config dirs, XDG style: $XDG_CONFIG_HOME,
+// then ~/.config, then the OS default (~/Library/Application Support on
+// macOS), which older versions used.
+func DirCandidates() []string {
+	var dirs []string
+	add := func(base string) {
+		if base == "" {
+			return
+		}
+		d := filepath.Join(base, "gooseneck")
+		for _, x := range dirs {
+			if x == d {
+				return
+			}
+		}
+		dirs = append(dirs, d)
+	}
+	add(os.Getenv("XDG_CONFIG_HOME"))
+	if home, err := os.UserHomeDir(); err == nil {
+		add(filepath.Join(home, ".config"))
+	}
+	if base, err := os.UserConfigDir(); err == nil {
+		add(base)
+	}
+	if len(dirs) == 0 {
+		dirs = []string{filepath.Join(".config", "gooseneck")}
+	}
+	return dirs
 }
 
 // Path is the config file location.
