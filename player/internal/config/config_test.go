@@ -229,3 +229,15 @@ func TestDirPrefersXDGThenExisting(t *testing.T) {
 		t.Fatalf("existing ~/.config dir: Dir() = %q, want %q", got, want)
 	}
 }
+
+func TestViewsParse(t *testing.T) {
+	var c Config
+	src := "view = \"grid\"\n[views]\nalbums = { view = \"list\", thumbnails = false }\n[views.library]\nview = \"grid\"\n"
+	if _, err := toml.Decode(src, &c); err != nil {
+		t.Fatal(err)
+	}
+	al := c.Views["albums"]
+	if al.View != "list" || al.Thumbnails == nil || *al.Thumbnails || c.Views["library"].View != "grid" {
+		t.Fatalf("Views = %+v", c.Views)
+	}
+}

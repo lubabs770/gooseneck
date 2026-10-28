@@ -51,7 +51,7 @@ type homePage struct {
 }
 
 func newHome(a *App) *homePage {
-	h := &homePage{results: newCollection(false, true, "")}
+	h := &homePage{results: newCollection(false, a.thumbsFor("search"), "")}
 	h.results.empty = "no artists match"
 	h.refresh(a)
 	return h

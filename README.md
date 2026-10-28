@@ -229,6 +229,19 @@ j = "k"                       # swap down/up; unlisted keys keep their defaults
 k = "j"                       # names: "x", "X", "ctrl+x", "alt+x", "enter", "space", "pgdown", …
 ```
 
+Per-screen overrides of `view` and `thumbnails` go in a `[views]` table; a
+field left out uses the global setting, and `v` / `i` still toggle live:
+
+```toml
+[views]
+library = { view = "grid" }                       # every artist (page 2)
+albums  = { view = "list" }                       # artist page tabs: albums,
+singles = { view = "list", thumbnails = false }   #   singles, related
+related = { view = "grid" }
+search  = { thumbnails = false }                  # art only: search, artist,
+sidebar = { thumbnails = true }                   #   album, sidebar
+```
+
 `GOOSENECK_HOME=/some/dir` moves config, cache and the player socket somewhere
 else (handy for testing). `GOOSENECK_IMAGES=kitty|halfblock|off` forces an image
 mode.

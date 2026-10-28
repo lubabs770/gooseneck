@@ -219,6 +219,12 @@ Runtime deps: `yt-dlp` + `mpv`. `goose doctor` checks everything.
   strings only; `App.key` remaps each press once (pressed → default key) before
   dispatch. Add new bindings as default keys and they're overridable for free.
   Printable keys aren't remapped while `App.typing()` (search, palette).
+- **Per-screen views (`tui/views.go`):** `[views]` rules (`config.ViewRule`)
+  override `view` / `thumbnails` per screen in `ViewNames`. Collections take
+  their start layout from `a.gridFor(name)` and art from `a.thumbsFor(name)`;
+  headers and the sidebar use `a.artFor(name)`. `i` (`a.showImages`) stays a
+  master switch. Bad rules are toasted at startup (`checkViews`). A new
+  grid/art screen needs an entry in `ViewNames`.
 - **Config is forward-compatible:** new fields need a backfill in
   `config.normalize`; `*bool` fields are tri-state (nil → default).
 - **CLI args that start with `-`** (`goose seek -10`, `goose config set player_args --no-video`)
