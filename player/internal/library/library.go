@@ -15,6 +15,7 @@ import (
 
 	"github.com/lubabs770/gooseneck/player/internal/catalog"
 	"github.com/lubabs770/gooseneck/player/internal/config"
+	"github.com/lubabs770/gooseneck/player/internal/lyrics"
 	"github.com/lubabs770/gooseneck/player/internal/mpv"
 	"github.com/lubabs770/gooseneck/player/internal/scrobble"
 	"github.com/lubabs770/gooseneck/player/internal/store"
@@ -376,4 +377,43 @@ func (l *Lib) Queue() ([]QueueItem, error) {
 		out[i] = QueueItem{Index: e.Index, Current: e.Current, Track: t}
 	}
 	return out, nil
+}
+
+// ---- lyrics ----------------------------------------------------------------------
+
+// lyricsMissTTL is how long "LRCLIB has nothing" is remembered; found lyrics
+// are kept for good (they don't change).
+const lyricsMissTTL = 7 * 24 * time.Hour
+
+// Lyrics looks a track up on LRCLIB, cached per video id. nil, nil = no lyrics.
+func (l *Lib) Lyrics(ctx context.Context, t store.Track, fresh bool) (*lyrics.Lyrics, error) {
+	if t.Title == "" || t.Title == t.VideoID {
+		return nil, errors.New("track title not known yet")
+	}
+	key := "lyrics:" + t.VideoID
+	var cached lyrics.Lyrics
+	found, stale := l.DB.GetJSON(key, lyricsMissTTL, &cached)
+	hit := found && (cached.Plain != "" || cached.Synced != "" || cached.Instrumental)
+	if found && !fresh && (hit || !stale) {
+		return orNil(&cached, hit), nil
+	}
+	res, err := lyrics.Search(ctx, t.Title, t.Artist, t.Duration)
+	if err != nil {
+		if found {
+			return orNil(&cached, hit), nil // offline: serve what we have
+		}
+		return nil, err
+	}
+	if res == nil {
+		res = &lyrics.Lyrics{}
+	}
+	_ = l.DB.PutJSON(key, res)
+	return orNil(res, res.Plain != "" || res.Synced != "" || res.Instrumental), nil
+}
+
+func orNil(l *lyrics.Lyrics, ok bool) *lyrics.Lyrics {
+	if !ok {
+		return nil
+	}
+	return l
 }

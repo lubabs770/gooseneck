@@ -28,6 +28,7 @@ internal/store           SQLite: response cache (kv), track metadata, play histo
 internal/catalog         artists.json load/download, tags, fuzzy search, name resolution, multi-catalog merge
 internal/art             artist/album art download + disk cache (`goose cache warm`)
 internal/config          TOML config + every on-disk path
+internal/lyrics          LRCLIB lyrics client (/api/search) + LRC parsing
 internal/bidi            Hebrew (RTL) visual reordering for terminals
 internal/selfupdate      `goose upgrade`: GitHub release lookup, checksum check, atomic binary swap
 ```
@@ -118,6 +119,17 @@ internal/selfupdate      `goose upgrade`: GitHub release lookup, checksum check,
   (`scrobble.Permanent`) drop them.
 - Config holds secrets: `config.Save` writes 0600; `config.Secret`/`Mask` hide
   them in `goose config` output. Never print or commit real tokens.
+
+### Lyrics (`internal/lyrics`, `Lib.Lyrics`)
+
+- One `GET lrclib.net/api/search?track_name&artist_name` per track (retried
+  once on 503, which LRCLIB returns when busy; retried with `Clean(title)` when
+  the YouTube title has "(Official Video)"-style noise). `best` prefers synced,
+  then the closest duration. `GOOSENECK_LRCLIB_URL` overrides the host for tests.
+- Cached in kv as `lyrics:<videoId>`: hits forever, misses (an empty record)
+  for 7 days. `--fresh` / TUI `R` bypass it.
+- CLI `goose lyrics [--follow]`; TUI `lyricsPage` (`6`, palette, `goose tui
+  lyrics`) refetches whenever a poll shows a new video id.
 
 ### Playback daemon (`internal/mpv`)
 

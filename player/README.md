@@ -18,6 +18,7 @@ GOOSENECK_HOME=/tmp/gn ./gooseneck-player   # isolated config / cache / player s
 | `internal/ytm` | YouTube Music web API client |
 | `internal/mpv` | mpv daemon + JSON IPC |
 | `internal/store` | SQLite cache, track metadata, history |
+| `internal/lyrics` | LRCLIB (lrclib.net) lyrics client + LRC parser |
 | `internal/catalog` | artists.json, tags, fuzzy search |
 | `internal/art` | artist / album art download + disk cache |
 | `internal/config` | config file and paths |

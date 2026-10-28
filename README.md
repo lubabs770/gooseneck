@@ -57,7 +57,7 @@ Run `goose`. Start typing to search, `enter` to open, `p` to play.
 | `-` `+` · `r` | volume · repeat (off → all → one) |
 | `D` | download the selection for offline play |
 | `m` | endless radio from the selected artist |
-| `1`–`5` | home · library · queue · history · downloads |
+| `1`–`6` | home · library · queue · history · downloads · lyrics |
 | `ctrl+p` | command palette (also `/` commands from the home prompt) |
 | `t` · `v` · `i` · `b` | themes · grid/list · art on/off · sidebar |
 | `?` · `q` | help · quit (music keeps playing; `goose stop` stops it) |
@@ -99,6 +99,7 @@ goose play fried --shuffle                # everything by an artist, shuffled
 goose play "8th Day" --top --add          # append their top songs to the queue
 goose play https://youtu.be/<id>          # any single video
 goose now | queue | next | prev | pause | resume | toggle | stop
+goose lyrics | lyrics --follow           # lyrics from lrclib.net, synced when available
 goose seek +30 | seek 1:15 | vol 60 | vol -10 | repeat all | shuffle
 goose queue jump 4 | queue rm 2 | queue clear
 goose radio "8th Day"                     # endless radio: artist + related artists
@@ -254,6 +255,10 @@ mode.
 - **Media keys** — install [mpv-mpris](https://github.com/hoyon/mpv-mpris)
   and the daemon shows up in desktop media controls / `playerctl` automatically
   (`goose doctor` tells you if it's there).
+- **Lyrics** — looked up on [LRCLIB](https://lrclib.net) (`goose lyrics`, or
+  `6` in the TUI). Synced lyrics follow playback with the sung line
+  highlighted; `goose lyrics --follow` prints each line as it's sung, for status
+  bars. Results are cached; a miss is retried after a week.
 - **History** — every play is recorded (`goose history`, `goose top`), and
   the home screen shows recently played artists.
 

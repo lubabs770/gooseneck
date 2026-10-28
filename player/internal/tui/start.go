@@ -14,7 +14,7 @@ import (
 )
 
 // StartPages are the pages the TUI can open on (`goose tui <page>`).
-var StartPages = []string{"home", "library", "queue", "history", "downloads", "artist", "album"}
+var StartPages = []string{"home", "library", "queue", "history", "downloads", "lyrics", "artist", "album"}
 
 // filterPages accept --filter (the pages with a search prompt).
 var filterPages = map[string]bool{"home": true, "library": true, "downloads": true, "artist": true, "album": true}
@@ -247,6 +247,10 @@ func (a *App) openStart() tea.Cmd {
 	case "downloads":
 		var p *downloadsPage
 		p, cmd = newDownloadsPage(a)
+		a.push(p)
+	case "lyrics":
+		var p *lyricsPage
+		p, cmd = newLyricsPage(a)
 		a.push(p)
 	case "artist":
 		var p *artistPage

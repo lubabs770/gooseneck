@@ -40,6 +40,11 @@ func commands(a *App) []command {
 			a.goTo(p)
 			return cmd
 		}},
+		{"lyrics", "lyrics of the playing track (lrclib.net)", "6", func(a *App) tea.Cmd {
+			p, cmd := newLyricsPage(a)
+			a.goTo(p)
+			return cmd
+		}},
 		{"home", "back to the start", "1", func(a *App) tea.Cmd { a.goTo(nil); return nil }},
 		{"theme", "switch theme (live preview)", "t", func(a *App) tea.Cmd { a.dialog = newThemePicker(a); return nil }},
 		{"pause", "play / pause", "space", ctl(func(p *mpv.Player) (string, error) { _, err := p.TogglePause(); return "", err })},
@@ -343,7 +348,7 @@ var helpSections = []helpSection{
 	{"Navigate", [][2]string{
 		{"hjkl ←↓↑→", "move"}, {"enter", "open / play from here"}, {"esc ⌫", "back"},
 		{"tab", "next section / tag"}, {"g G", "top / bottom"}, {"ctrl+d/u", "half page"},
-		{"/", "search / filter"}, {"1-5", "home lib queue history dl"},
+		{"/", "search / filter"}, {"1-6", "home lib queue history dl lyrics"},
 	}},
 	{"Play", [][2]string{
 		{"p", "play selection"}, {"a", "add to queue"}, {"A", "play next"},
