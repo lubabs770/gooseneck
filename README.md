@@ -60,6 +60,7 @@ Run `goose`. Start typing to search, `enter` to open, `p` to play.
 | `1`–`6` | home · library · queue · history · downloads · lyrics |
 | `ctrl+p` | command palette (also `/` commands from the home prompt) |
 | `t` · `v` · `i` · `b` | themes · grid/list · art on/off · sidebar |
+| `y` | live lyrics: in the sidebar → one line under the status bar → off |
 | `?` · `q` | help · quit (music keeps playing; `goose stop` stops it) |
 
 **Mouse.** Click to select, double-click to open (or play from there), and
@@ -207,6 +208,7 @@ view         = "grid"         # grid | list
 thumbnails   = true           # artist / album art
 thumb_height = 0              # art height in rows; 0 = auto
 sidebar      = true           # now-playing sidebar on wide terminals
+lyrics       = "off"          # live lyrics: off | sidebar | line (under the status bar)
 show_help    = true           # key hints in the status bar
 volume       = 80             # starting volume
 player       = "mpv"          # other players work fire-and-forget ($APP overrides)
@@ -257,8 +259,10 @@ mode.
   (`goose doctor` tells you if it's there).
 - **Lyrics** — looked up on [LRCLIB](https://lrclib.net) (`goose lyrics`, or
   `6` in the TUI). Synced lyrics follow playback with the sung line
-  highlighted; `goose lyrics --follow` prints each line as it's sung, for status
-  bars. Results are cached; a miss is retried after a week.
+  highlighted. They can also run live in the sidebar or as one line under the
+  status bar, where long lines scroll across (`y` cycles, `lyrics = "sidebar"`
+  / `"line"` sets the default). `goose lyrics --follow` prints each line as
+  it's sung, for status bars. Results are cached; a miss is retried after a week.
 - **History** — every play is recorded (`goose history`, `goose top`), and
   the home screen shows recently played artists.
 

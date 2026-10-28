@@ -128,8 +128,12 @@ internal/selfupdate      `goose upgrade`: GitHub release lookup, checksum check,
   then the closest duration. `GOOSENECK_LRCLIB_URL` overrides the host for tests.
 - Cached in kv as `lyrics:<videoId>`: hits forever, misses (an empty record)
   for 7 days. `--fresh` / TUI `R` bypass it.
-- CLI `goose lyrics [--follow]`; TUI `lyricsPage` (`6`, palette, `goose tui
-  lyrics`) refetches whenever a poll shows a new video id.
+- CLI `goose lyrics [--follow]`. TUI: one `App.lyr` state (`tui/lyrics.go`)
+  feeds the lyrics page (`6`), the sidebar LYRICS section and the line under
+  the status bar (`App.lyricsAt`: off | sidebar | line, from config `lyrics`,
+  `y` cycles for the session). `syncLyrics` runs on every poll and fetches on a
+  new video id whenever one of them is showing. `marquee` scrolls lines wider
+  than the terminal (reversed for Hebrew, which is in visual order).
 
 ### Playback daemon (`internal/mpv`)
 

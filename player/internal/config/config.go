@@ -30,6 +30,7 @@ type Config struct {
 	Thumbnails  *bool    `toml:"thumbnails"`   // artist / album art
 	ThumbHeight int      `toml:"thumb_height"` // art height in rows; 0 = auto
 	Sidebar     *bool    `toml:"sidebar"`      // now-playing sidebar on wide terminals
+	Lyrics      string   `toml:"lyrics"`       // live lyrics in the TUI: "off" | "sidebar" | "line"
 	Volume      int      `toml:"volume"`       // starting volume for the player (0-130)
 	DownloadDir string   `toml:"download_dir"` // where downloads go; "" = ~/Music/gooseneck
 
@@ -119,6 +120,7 @@ func Default() Config {
 		Scrobble:      BoolPtr(true),
 		LocalScrobble: BoolPtr(true),
 		Volume:        80,
+		Lyrics:        "off",
 	}
 }
 
@@ -256,6 +258,9 @@ func normalize(cfg Config) Config {
 		if *p == nil {
 			*p = BoolPtr(true)
 		}
+	}
+	if cfg.Lyrics != "sidebar" && cfg.Lyrics != "line" {
+		cfg.Lyrics = "off"
 	}
 	if cfg.View != "list" {
 		cfg.View = "grid"

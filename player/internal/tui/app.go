@@ -70,6 +70,8 @@ type App struct {
 	img        *images
 	showImages bool
 	sidebar    bool
+	lyricsAt   string // live lyrics: "off" | "sidebar" | "line" (y cycles)
+	lyr        lyricsState
 	showHelp   bool // key hints in the status bar
 
 	stack     []page
@@ -136,6 +138,7 @@ func newApp(l *library.Lib, opts Options, out *syncWriter) *App {
 		img:        newImages(config.On(l.Cfg.Thumbnails, true), out),
 		showImages: config.On(l.Cfg.Thumbnails, true),
 		sidebar:    config.On(l.Cfg.Sidebar, true),
+		lyricsAt:   l.Cfg.Lyrics,
 		showHelp:   config.On(l.Cfg.ShowHelp, true),
 		zones:      zone.New(),
 	}
@@ -421,8 +424,12 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			a.now, a.queue = library.NowPlaying{}, nil
 		}
-		if lp, ok := a.top().(*lyricsPage); ok {
-			cmds = append(cmds, lp.sync(a, false)) // the track changed: fetch its lyrics
+		cmds = append(cmds, a.syncLyrics()) // fetches when the track changed
+
+	case lyricsLoaded:
+		a.busy = max(0, a.busy-1)
+		if msg.id == a.lyr.id {
+			a.lyr = lyricsState{id: msg.id, ly: msg.ly, lines: msg.ly.Lines(), err: msg.err}
 		}
 
 	case doneMsg:
@@ -447,7 +454,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	default:
 		switch msg.(type) {
-		case artistLoaded, albumLoaded, lyricsLoaded:
+		case artistLoaded, albumLoaded:
 			a.busy = max(0, a.busy-1) // counted here, not in pages, which may be gone
 		}
 		// Data for pages (artistLoaded, albumLoaded, …): every page on the
@@ -531,6 +538,8 @@ func (a *App) key(msg tea.KeyMsg) tea.Cmd {
 	case "b":
 		a.sidebar = !a.sidebar
 		return nil
+	case "y":
+		return a.cycleLyrics()
 	case "i":
 		a.showImages = !a.showImages
 		a.notify(map[bool]string{true: "art on", false: "art off"}[a.showImages], false)
@@ -645,6 +654,10 @@ func (a *App) View() string {
 	}
 	t := a.theme
 	bodyH := a.h - 1
+	lyricLine := a.lyricsAt == "line" && a.playerUp && !a.now.Idle
+	if lyricLine {
+		bodyH--
+	}
 	side := a.sidebar && a.w >= 100
 	mainW := a.w
 	if side {
@@ -680,6 +693,9 @@ func (a *App) View() string {
 		body = lipgloss.JoinHorizontal(lipgloss.Top, main, a.sidebarView(sidebarW, bodyH))
 	}
 	frame := body + "\n" + a.statusBar()
+	if lyricLine {
+		frame += "\n" + a.lyricLine(a.w)
+	}
 	if a.dialog != nil {
 		box := a.dialog.view(a)
 		x, y := center(box, a.w, a.h)
@@ -876,6 +892,10 @@ func (a *App) sidebarView(w, h int) string {
 			} else {
 				b = append(b, t.subtle().Render(fmt.Sprintf("♫ scrobble in %s", ytm.FormatDuration(int(sc.Needed-sc.Played)))))
 			}
+		}
+
+		if a.lyricsAt == "sidebar" {
+			b = append(b, a.sideLyrics(inner, h)...)
 		}
 
 		// up next
