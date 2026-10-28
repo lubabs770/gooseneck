@@ -47,10 +47,22 @@ type Config struct {
 	// Extra catalogs merged with the main one (managed by `goose catalog`).
 	Catalogs []CatalogSource `toml:"catalog"`
 
+	// Views overrides `view` and `thumbnails` per screen, e.g.
+	//   [views]
+	//   albums = { view = "list", thumbnails = false }
+	// Screens are listed by tui.ViewNames; unset fields use the globals.
+	Views map[string]ViewRule `toml:"views,omitempty"`
+
 	// KeyMap overrides TUI keys: each entry makes the pressed key act like a
 	// default key, e.g. {"j": "k", "k": "j"} swaps up and down. Unlisted keys
 	// keep their defaults.
 	KeyMap map[string]string `toml:"keys,omitempty"`
+}
+
+// ViewRule is one [views] entry.
+type ViewRule struct {
+	View       string `toml:"view,omitempty"`       // "grid" | "list"; "" = global view
+	Thumbnails *bool  `toml:"thumbnails,omitempty"` // nil = global thumbnails
 }
 
 // CatalogSource is one extra catalog: a local artists.json (Path, editable

@@ -26,8 +26,8 @@ type libraryPage struct {
 }
 
 func newLibrary(a *App) *libraryPage {
-	p := &libraryPage{items: newCollection(true, true, "no artists")}
-	p.items.grid = a.lib.Cfg.View != "list"
+	p := &libraryPage{items: newCollection(true, a.thumbsFor("library"), "no artists")}
+	p.items.grid = a.gridFor("library")
 	p.load(a)
 	return p
 }
@@ -251,8 +251,8 @@ func (p *artistPage) setArtist(a *App, ar *ytm.Artist) {
 		return out
 	}
 	if len(ar.Albums) > 0 {
-		c := newCollection(true, true, "")
-		c.grid = a.lib.Cfg.View != "list"
+		c := newCollection(true, a.thumbsFor("albums"), "")
+		c.grid = a.gridFor("albums")
 		c.set(rel(ar.Albums))
 		label := "Albums"
 		if ar.Albums[0].Kind == "Uploads" {
@@ -261,8 +261,8 @@ func (p *artistPage) setArtist(a *App, ar *ytm.Artist) {
 		p.tabs = append(p.tabs, artistTab{label, c})
 	}
 	if len(ar.Singles) > 0 {
-		c := newCollection(true, true, "")
-		c.grid = a.lib.Cfg.View != "list"
+		c := newCollection(true, a.thumbsFor("singles"), "")
+		c.grid = a.gridFor("singles")
 		c.set(rel(ar.Singles))
 		p.tabs = append(p.tabs, artistTab{"Singles & EPs", c})
 	}
@@ -276,8 +276,8 @@ func (p *artistPage) setArtist(a *App, ar *ytm.Artist) {
 		p.tabs = append(p.tabs, artistTab{"Top songs", c})
 	}
 	if len(ar.Related) > 0 {
-		c := newCollection(true, true, "")
-		c.grid = a.lib.Cfg.View != "list"
+		c := newCollection(true, a.thumbsFor("related"), "")
+		c.grid = a.gridFor("related")
 		var items []entry
 		for _, r := range ar.Related {
 			cat, ok := a.lib.Cat.Get(r.ID)
@@ -490,7 +490,7 @@ func (p *artistPage) view(a *App, w, h int) string {
 	if h < 30 {
 		artH = 6
 	}
-	if !a.showImages {
+	if !a.artFor("artist") {
 		artH = 0
 	}
 	artW := artH * 2
@@ -683,7 +683,7 @@ func (p *albumPage) view(a *App, w, h int) string {
 		p.tracks.items[i].active = a.playerUp && !a.now.Idle && p.tracks.items[i].key == a.now.VideoID
 	}
 	artH := 6
-	if !a.showImages {
+	if !a.artFor("album") {
 		artH = 0
 	}
 	var info []string

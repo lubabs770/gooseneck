@@ -135,8 +135,8 @@ func newApp(l *library.Lib, opts Options, out *syncWriter) *App {
 		lib:        l,
 		opts:       opts,
 		theme:      GetTheme(themeName),
-		img:        newImages(config.On(l.Cfg.Thumbnails, true), out),
-		showImages: config.On(l.Cfg.Thumbnails, true),
+		img:        newImages(anyThumbs(l.Cfg), out),
+		showImages: anyThumbs(l.Cfg),
 		sidebar:    config.On(l.Cfg.Sidebar, true),
 		lyricsAt:   l.Cfg.Lyrics,
 		showHelp:   config.On(l.Cfg.ShowHelp, true),
@@ -146,6 +146,9 @@ func newApp(l *library.Lib, opts Options, out *syncWriter) *App {
 	a.keys, bad = newKeyMap(l.Cfg.KeyMap)
 	if len(bad) > 0 {
 		a.notify("[keys] in config.toml: "+strings.Join(bad, "; "), true)
+	}
+	if bad := checkViews(l.Cfg.Views); len(bad) > 0 {
+		a.notify("[views] in config.toml: "+strings.Join(bad, "; "), true)
 	}
 	a.omarchySig = omarchySignature()
 	a.input = textinput.New()
@@ -851,7 +854,7 @@ func (a *App) sidebarView(w, h int) string {
 		if h < 30 {
 			artW, artH = 16, 8
 		}
-		if a.showImages && np.Track.Thumb != "" {
+		if a.artFor("sidebar") && np.Track.Thumb != "" {
 			art := a.img.block(t, np.Track.Thumb, np.Track.Album, artW, artH, a.dialog != nil)
 			b = append(b, strings.Split(art, "\n")...)
 			b = append(b, "")
