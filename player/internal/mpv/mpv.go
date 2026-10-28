@@ -12,6 +12,7 @@ package mpv
 
 import (
 	"bufio"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -173,6 +174,12 @@ func (p *Player) Alive() bool {
 
 // ---- lifecycle -----------------------------------------------------------------
 
+//go:embed ytdl_wait.lua
+var ytdlWait []byte
+
+// waitScript is where Start writes ytdl_wait.lua, next to the socket.
+func (p *Player) waitScript() string { return filepath.Join(filepath.Dir(p.Sock), "ytdl_wait.lua") }
+
 // Args are the flags the daemon is started with.
 func (p *Player) Args() []string {
 	vol := p.Cfg.Volume
@@ -190,6 +197,7 @@ func (p *Player) Args() []string {
 		"--prefetch-playlist=yes",
 		"--volume=" + strconv.Itoa(vol),
 		"--title=gooseneck",
+		"--script=" + p.waitScript(),
 	}
 	if p.Cfg.BinDir != "" {
 		args = append(args, "--script-opts=ytdl_hook-ytdl_path="+p.Cfg.YtDlpPath())
@@ -210,6 +218,9 @@ func (p *Player) Start() error {
 		return err
 	}
 	_ = os.Remove(p.Sock) // stale socket from a crashed daemon
+	if err := os.WriteFile(p.waitScript(), ytdlWait, 0o600); err != nil {
+		return err
+	}
 	bin, err := exec.LookPath(p.Cfg.Player)
 	if err != nil {
 		return fmt.Errorf("%s not found: install mpv (https://mpv.io) or set player in the config", p.Cfg.Player)
