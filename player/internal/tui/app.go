@@ -421,6 +421,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			a.now, a.queue = library.NowPlaying{}, nil
 		}
+		if lp, ok := a.top().(*lyricsPage); ok {
+			cmds = append(cmds, lp.sync(a, false)) // the track changed: fetch its lyrics
+		}
 
 	case doneMsg:
 		a.busy = max(0, a.busy-1)
@@ -444,7 +447,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	default:
 		switch msg.(type) {
-		case artistLoaded, albumLoaded:
+		case artistLoaded, albumLoaded, lyricsLoaded:
 			a.busy = max(0, a.busy-1) // counted here, not in pages, which may be gone
 		}
 		// Data for pages (artistLoaded, albumLoaded, …): every page on the
@@ -519,6 +522,10 @@ func (a *App) key(msg tea.KeyMsg) tea.Cmd {
 		return cmd
 	case "5":
 		p, cmd := newDownloadsPage(a)
+		a.goTo(p)
+		return cmd
+	case "6":
+		p, cmd := newLyricsPage(a)
 		a.goTo(p)
 		return cmd
 	case "b":

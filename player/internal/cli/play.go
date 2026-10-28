@@ -36,6 +36,7 @@ func (a *app) playbackCmds() []*cobra.Command {
 		a.radioCmd(),
 		a.nowCmd(),
 		a.queueCmd(),
+		a.lyricsCmd(),
 		simple("pause", "Pause playback", nil, func(l *library.Lib) (string, error) {
 			return "paused", l.Player.SetPause(true)
 		}),
