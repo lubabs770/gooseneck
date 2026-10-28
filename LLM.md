@@ -141,6 +141,11 @@ internal/selfupdate      `goose upgrade`: GitHub release lookup, checksum check,
   (`Setsid`), socket at `$XDG_RUNTIME_DIR/gooseneck/mpv.sock` (or
   `$GOOSENECK_HOME/run/`). It outlives the TUI on purpose; `goose stop` /
   `goose quit-player` end it.
+- `Start` writes the embedded `mpv/ytdl_wait.lua` next to the socket and
+  loads it with `--script`: YouTube 403s a stream URL until the
+  `available_at` time yt-dlp reports (~5s), and mpv ≤0.41's ytdl_hook opens it
+  at once, so every track failed and mpv skipped through the queue. It's a
+  backport of mpv PR #18193; drop it once a released mpv waits by itself.
 - Every process (TUI, CLI) talks to the same socket; one connection per batch
   of commands (`Player.Batch`), unsolicited events are skipped.
 - Non-mpv players and Windows fall back to fire-and-forget (`Managed() == false`).
