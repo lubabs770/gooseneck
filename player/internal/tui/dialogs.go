@@ -126,6 +126,7 @@ func commands(a *App) []command {
 			return nil
 		}},
 		{"sidebar", "toggle the now-playing sidebar", "b", func(a *App) tea.Cmd { a.sidebar = !a.sidebar; return nil }},
+		{"live lyrics", "lyrics in the sidebar / a line under the status bar / off", "y", func(a *App) tea.Cmd { return a.cycleLyrics() }},
 		{"art", "toggle artist & album art", "i", func(a *App) tea.Cmd { a.showImages = !a.showImages; return nil }},
 		{"view", "toggle grid / list", "v", func(a *App) tea.Cmd {
 			if c := pageCollection(a.top()); c != nil && c.canGrid {
@@ -361,7 +362,7 @@ var helpSections = []helpSection{
 	}},
 	{"App", [][2]string{
 		{"ctrl+p :", "commands"}, {"t", "themes"}, {"v", "grid / list"}, {"i", "art on/off"},
-		{"b", "sidebar"}, {"q", "quit (music keeps going)"},
+		{"b", "sidebar"}, {"y", "live lyrics"}, {"q", "quit (music keeps going)"},
 	}},
 	{"Mouse", [][2]string{
 		{"click", "select"}, {"dbl-click", "open / play from here"}, {"wheel", "scroll"},
