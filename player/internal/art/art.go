@@ -53,13 +53,22 @@ func Cached(url string) bool {
 	return err == nil
 }
 
-// Load returns the decoded image for url, downloading it on first use.
-func Load(url string) (image.Image, error) {
+// Fetch returns the cached file for url, downloading it on first use.
+func Fetch(url string) (string, error) {
 	path := Path(url)
 	if _, err := os.Stat(path); err != nil {
 		if err := download(SquareURL(url, FetchPx), path); err != nil {
-			return nil, err
+			return "", err
 		}
+	}
+	return path, nil
+}
+
+// Load returns the decoded image for url, downloading it on first use.
+func Load(url string) (image.Image, error) {
+	path, err := Fetch(url)
+	if err != nil {
+		return nil, err
 	}
 	f, err := os.Open(path)
 	if err != nil {
