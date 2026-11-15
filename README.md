@@ -134,6 +134,23 @@ goose artist "Avraham Fried" --json | jq -r '.albums[0].title'
 Shell completion (artist and album names complete too):
 `goose completion zsh > "${fpath[1]}/_goose"` (also `bash`, `fish`, `powershell`).
 
+## Web UI & API
+
+`goose serve` runs an HTTP API for everything the CLI does, plus live player
+state over server-sent events (`/api/events`). Point `--ui` at
+[partiality](https://github.com/lubabs770/partiality) for a full web UI. The
+browser is a remote: music still plays here, through the same player.
+
+```sh
+goose serve --ui ~/code/partiality --open        # http://127.0.0.1:7777
+goose serve --ui ~/code/partiality --tailscale   # also on your tailnet (phone)
+curl -s 127.0.0.1:7777/api/now | jq .track.title
+```
+
+It only listens on localhost, plus your tailnet IP with `--tailscale`, never
+`0.0.0.0`. There is no login. Requests with an unknown `Host` or a foreign
+`Origin` are refused.
+
 ## Catalogs
 
 The main catalog is curated, but you can add your own next to it — a personal

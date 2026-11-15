@@ -135,6 +135,24 @@ internal/selfupdate      `goose upgrade`: GitHub release lookup, checksum check,
   new video id whenever one of them is showing. `marquee` scrolls lines wider
   than the terminal (reversed for Hebrew, which is in visual order).
 
+### Web API (`internal/web`, `goose serve`)
+
+- `web.New(lib, Options{Addrs, Hosts, UI}).Serve(ctx)`: stdlib `net/http`.
+  The route table is at the top of `api.go`, with one route per CLI action.
+  `--ui <dir>` serves a static UI (partiality) at `/` from the same origin.
+- `guard` rejects an unknown `Host` (DNS rebinding) and non-GET requests
+  with a foreign `Origin` / `Sec-Fetch-Site: cross-site`. Listen addresses are
+  loopback plus, with `--tailscale`, the IP + MagicDNS name from
+  `tailscale status --json`. Never `0.0.0.0`.
+- One `sync.RWMutex` wraps every handler. Catalog/config writes (`apiExclusive`)
+  swap `lib.Cat` / `lib.Cfg` and take it exclusively.
+- `/api/events` (SSE): `poll` reads `Now`/`Queue`/`RadioStatus` once a second
+  while a client is connected. Sticky types (now/queue/radio) are deduped and
+  replayed to new subscribers. `download` / `download_done` come from
+  background download jobs, one job at a time (`Server.dl`).
+- `/art?u=` serves `art.Fetch`'s disk cache, only for YouTube/Google image hosts.
+- Config writes from the web are limited to `webKeys` (no paths, no secrets).
+
 ### Playback daemon (`internal/mpv`)
 
 - First play starts `mpv --idle --no-video --input-ipc-server=<sock>` detached

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/lubabs770/gooseneck/player/internal/catalog"
 	"github.com/lubabs770/gooseneck/player/internal/config"
+	"github.com/lubabs770/gooseneck/player/internal/library"
 	"github.com/spf13/cobra"
 )
 
@@ -250,39 +250,21 @@ personal list, or someone else's published artists.json.
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			p := a.out(cmd)
-			dest := config.CatalogCachePath()
-			if err := catalog.Download(a.cfg.ArtistsURL, dest); err != nil {
-				return err
-			}
-			main, err := catalog.Read(dest)
-			if err != nil {
-				return err
-			}
-			res := map[string]int{catalog.MainName: main.Len()}
-			if !p.json {
-				p.println(p.S(p.ok, "✓ ") + fmt.Sprintf("%s: %d artists", catalog.MainName, main.Len()))
-			}
-			var failed error
-			for _, src := range a.cfg.Catalogs {
-				if src.URL == "" || src.Disabled {
-					continue
-				}
-				if err := catalog.Download(src.URL, src.File()); err != nil {
-					failed = err
-					if !p.json {
-						p.println(p.S(p.bad, "✗ ") + src.Name + ": " + err.Error())
-					}
-					continue
-				}
-				c, err := catalog.Read(src.File())
+			res := map[string]int{}
+			failed := library.UpdateCatalogs(a.cfg, func(name string, n int, err error) {
 				if err != nil {
-					failed = err
-					continue
+					if !p.json {
+						p.println(p.S(p.bad, "✗ ") + name + ": " + err.Error())
+					}
+					return
 				}
-				res[src.Name] = c.Len()
+				res[name] = n
 				if !p.json {
-					p.println(p.S(p.ok, "✓ ") + fmt.Sprintf("%s: %d artists", src.Name, c.Len()))
+					p.println(p.S(p.ok, "✓ ") + fmt.Sprintf("%s: %d artists", name, n))
 				}
+			})
+			if len(res) == 0 && failed != nil {
+				return failed // the main catalog itself failed
 			}
 			if p.json {
 				return p.JSON(res)
@@ -341,16 +323,9 @@ func (a *app) checkNewCatalog(name string) error {
 }
 
 func (a *app) editable(name string) (config.CatalogSource, error) {
-	i := a.catalogIndex(name)
-	if i < 0 {
-		if name == catalog.MainName {
-			return config.CatalogSource{}, usage(errors.New("the main catalog is read-only; make your own: goose catalog new mine"))
-		}
-		return config.CatalogSource{}, usage(fmt.Errorf("no catalog named %q — create it: goose catalog new %s", name, name))
-	}
-	src := a.cfg.Catalogs[i]
-	if src.URL != "" {
-		return src, usage(fmt.Errorf("%s follows a URL and is read-only", name))
+	src, err := library.EditableCatalog(a.cfg, name)
+	if err != nil {
+		return src, usage(err)
 	}
 	return src, nil
 }
