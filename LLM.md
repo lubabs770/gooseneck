@@ -140,6 +140,9 @@ internal/selfupdate      `goose upgrade`: GitHub release lookup, checksum check,
 - `web.New(lib, Options{Addrs, Hosts, UI}).Serve(ctx)`: stdlib `net/http`.
   The route table is at the top of `api.go`, with one route per CLI action.
   `--ui <dir>` serves a static UI (partiality) at `/` from the same origin.
+  `goose ui` wraps serve with `cfg.UIDir()` (`ui` key, default
+  `<config dir>/partiality`), `git clone`s it on first run, `--update` pulls,
+  and just opens the browser if `--addr` already accepts connections.
 - `guard` rejects an unknown `Host` (DNS rebinding) and non-GET requests
   with a foreign `Origin` / `Sec-Fetch-Site: cross-site`. Listen addresses are
   loopback plus, with `--tailscale`, the IP + MagicDNS name from

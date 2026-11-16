@@ -136,14 +136,27 @@ Shell completion (artist and album names complete too):
 
 ## Web UI & API
 
-`goose serve` runs an HTTP API for everything the CLI does, plus live player
-state over server-sent events (`/api/events`). Point `--ui` at
-[partiality](https://github.com/lubabs770/partiality) for a full web UI. The
-browser is a remote: music still plays here, through the same player.
+[partiality](https://github.com/lubabs770/partiality) is a full web UI for
+gooseneck (Material 3 Expressive, dark / AMOLED / light). The browser is a
+remote: music still plays here, through the same player as the TUI and CLI.
 
 ```sh
-goose serve --ui ~/code/partiality --open        # http://127.0.0.1:7777
-goose serve --ui ~/code/partiality --tailscale   # also on your tailnet (phone)
+goose ui                 # open it at http://127.0.0.1:7777 (installs it the first time)
+goose ui --tailscale     # also reachable from your phone over your tailnet
+goose ui --update        # pull the latest partiality first
+```
+
+The first `goose ui` clones partiality into the config dir (needs `git`). To
+use your own checkout instead: `goose config set ui ~/code/partiality`. If the
+server is already running, `goose ui` just opens the browser.
+
+Under the hood it's `goose serve`: an HTTP API for everything the CLI does,
+plus live player state over server-sent events (`/api/events`). Run it
+directly for the API alone, or with any static UI:
+
+```sh
+goose serve                                    # API only
+goose serve --ui ~/code/partiality --open      # same as goose ui
 curl -s 127.0.0.1:7777/api/now | jq .track.title
 ```
 
@@ -234,6 +247,7 @@ local_scrobble = true         # record listens in scrobble_db
 scrobble_db  = ""             # "" = ~/.config/gooseneck/scrobbles.db
 bin_dir      = ""             # directory holding yt-dlp; "" = $PATH
 download_dir = ""             # "" = ~/Music/gooseneck/<Artist>/<Album>/
+ui = ""                       # web UI for goose ui; "" = <config dir>/partiality
 artists_json = ""             # use your own catalog file
 artists_url  = "https://skmusic.shalomkarr.workers.dev/data/artists.json"
 

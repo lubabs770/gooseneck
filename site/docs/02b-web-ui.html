@@ -1,0 +1,25 @@
+<!-- title: Web UI -->
+<!-- group: Using gooseneck -->
+<!-- desc: goose ui opens partiality, a full web UI, in your browser. Music still plays on this machine. -->
+<pre data-lang="sh">goose ui                 # open it at http://127.0.0.1:7777
+goose ui --tailscale     # also reachable from your phone over your tailnet
+goose ui --update        # pull the latest partiality first
+goose ui --no-open       # start the server without opening a browser</pre>
+<p><a href="https://github.com/lubabs770/partiality">partiality</a> is a web UI for gooseneck in Material 3 Expressive, with dark, AMOLED and light themes. It's a <strong>remote</strong>: music plays on the machine running <code>goose ui</code>, through the same player the TUI and CLI control, so they all stay in sync.</p>
+
+<h2>What's in it</h2>
+<p>Home, library, artist and album pages, queue, history, stats, downloads, synced lyrics (tap a line to seek) and settings. <kbd>/</kbd> focuses search, <kbd>Esc</kbd> closes menus and the full-screen player.</p>
+
+<h2>Where it lives</h2>
+<p>The first <code>goose ui</code> clones partiality into <code>&lt;config dir&gt;/partiality</code> (it needs <code>git</code>). To serve another checkout:</p>
+<pre data-lang="sh">goose config set ui ~/code/partiality</pre>
+<p>If the server is already running, <code>goose ui</code> just opens the browser.</p>
+
+<h2>On your phone</h2>
+<p><code>--tailscale</code> also listens on this machine's tailnet IP and MagicDNS name. There's no login: your tailnet decides who can reach it. It never listens on <code>0.0.0.0</code>, and requests with an unknown <code>Host</code> or a foreign <code>Origin</code> are refused.</p>
+
+<h2>The API underneath</h2>
+<p><code>goose ui</code> is <code>goose serve --ui &lt;dir&gt; --open</code>. <code>goose serve</code> on its own is a JSON API for everything the CLI does, plus live player state over server-sent events at <code>/api/events</code>:</p>
+<pre data-lang="sh">goose serve                                  # API only
+goose serve --ui ~/my-ui --addr 127.0.0.1:8080
+curl -s 127.0.0.1:7777/api/now | jq .track.title</pre>
