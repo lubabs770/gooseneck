@@ -141,8 +141,11 @@ internal/selfupdate      `goose upgrade`: GitHub release lookup, checksum check,
   The route table is at the top of `api.go`, with one route per CLI action.
   `--ui <dir>` serves a static UI (partiality) at `/` from the same origin.
   `goose ui` wraps serve with `cfg.UIDir()` (`ui` key, default
-  `<config dir>/partiality`), `git clone`s it on first run, `--update` pulls,
-  and just opens the browser if `--addr` already accepts connections.
+  `<config dir>/partiality`), asks y/N before `git clone`ing it (`--yes`; no
+  TTY = refuse), `--update` pulls, and just opens the browser if `--addr`
+  already accepts connections. It runs `goose serve` detached (`mpv.Detach`),
+  logging to `<RuntimeDir>/ui.log`, pid in `ui.pid`; `goose ui stop` signals
+  that pid after checking via `ps` that it is still a `serve`.
 - `guard` rejects an unknown `Host` (DNS rebinding) and non-GET requests
   with a foreign `Origin` / `Sec-Fetch-Site: cross-site`. Listen addresses are
   loopback plus, with `--tailscale`, the IP + MagicDNS name from
