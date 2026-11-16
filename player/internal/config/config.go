@@ -33,6 +33,7 @@ type Config struct {
 	Lyrics      string   `toml:"lyrics"`       // live lyrics in the TUI: "off" | "sidebar" | "line"
 	Volume      int      `toml:"volume"`       // starting volume for the player (0-130)
 	DownloadDir string   `toml:"download_dir"` // where downloads go; "" = ~/Music/gooseneck
+	UI          string   `toml:"ui"`           // web UI dir for `goose ui`; "" = <config dir>/partiality
 
 	// Scrobbling (see `goose scrobble`). Secrets: the file is saved 0600.
 	Scrobble          *bool  `toml:"scrobble"`           // master switch (default on)
@@ -214,6 +215,19 @@ func (c Config) Downloads() string {
 		music = filepath.Join(home, "Music")
 	}
 	return filepath.Join(music, "gooseneck")
+}
+
+// UIDir is the web UI `goose ui` serves: ui when set, else partiality under
+// the config dir (cloned there on first use).
+func (c Config) UIDir() string {
+	if strings.HasPrefix(c.UI, "~/") {
+		home, _ := os.UserHomeDir()
+		return filepath.Join(home, c.UI[2:])
+	}
+	if c.UI != "" {
+		return c.UI
+	}
+	return filepath.Join(Dir(), "partiality")
 }
 
 // ScrobblesPath is the local scrobble database (separate from cache.db).
