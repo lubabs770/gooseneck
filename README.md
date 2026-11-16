@@ -141,14 +141,16 @@ gooseneck (Material 3 Expressive, dark / AMOLED / light). The browser is a
 remote: music still plays here, through the same player as the TUI and CLI.
 
 ```sh
-goose ui                 # open it at http://127.0.0.1:7777 (installs it the first time)
+goose ui                 # open it at http://127.0.0.1:7777, server runs in the background
 goose ui --tailscale     # also reachable from your phone over your tailnet
 goose ui --update        # pull the latest partiality first
+goose ui stop            # stop the background server
 ```
 
-The first `goose ui` clones partiality into the config dir (needs `git`). To
-use your own checkout instead: `goose config set ui ~/code/partiality`. If the
-server is already running, `goose ui` just opens the browser.
+If partiality isn't installed, `goose ui` asks before cloning it into the
+config dir (needs `git`; `--yes` skips the question). To use your own checkout
+instead: `goose config set ui ~/code/partiality`. If the server is already
+running, `goose ui` just opens the browser.
 
 Under the hood it's `goose serve`: an HTTP API for everything the CLI does,
 plus live player state over server-sent events (`/api/events`). Run it
@@ -156,7 +158,7 @@ directly for the API alone, or with any static UI:
 
 ```sh
 goose serve                                    # API only
-goose serve --ui ~/code/partiality --open      # same as goose ui
+goose serve --ui ~/code/partiality --open      # goose ui, in the foreground
 curl -s 127.0.0.1:7777/api/now | jq .track.title
 ```
 

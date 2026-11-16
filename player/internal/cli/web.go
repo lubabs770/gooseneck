@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,9 +10,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/x/term"
+	"github.com/lubabs770/gooseneck/player/internal/config"
+	"github.com/lubabs770/gooseneck/player/internal/mpv"
 	"github.com/lubabs770/gooseneck/player/internal/web"
 	"github.com/spf13/cobra"
 )
@@ -48,23 +53,32 @@ https://github.com/lubabs770/partiality).`,
 
 func (a *app) uiCmd() *cobra.Command {
 	var addr string
-	var tailscale, update, noOpen bool
+	var tailscale, update, noOpen, yes bool
 	c := &cobra.Command{
 		Use:   "ui",
-		Short: "Open the partiality web UI (installs it the first time)",
-		Long: `Open partiality, the web UI, in your browser: goose serve with the UI
-directory filled in. The first run clones https://github.com/lubabs770/partiality
-into the config dir (needs git); set ui in config.toml to use another
-checkout. If the server is already running it just opens the browser.
+		Short: "Open the partiality web UI in the background (goose ui stop to stop)",
+		Long: `Open partiality, the web UI, in your browser. The server runs in the
+background, so your terminal comes straight back; goose ui stop ends it.
+For a foreground server use goose serve --ui <dir>.
 
-Like serve, the browser is a remote: music plays on this machine.`,
-		Example: "  goose ui                # open it here\n  goose ui --tailscale    # also reachable from your phone\n  goose ui --update       # pull the latest partiality first",
+If partiality isn't installed yet, goose ui asks before cloning
+https://github.com/lubabs770/partiality into the config dir (needs git;
+--yes skips the question). Set ui in config.toml to use another checkout.
+If the server is already running it just opens the browser.
+
+The browser is a remote: music plays on this machine.`,
+		Example: "  goose ui                # open it here\n  goose ui --tailscale    # also reachable from your phone\n  goose ui --update       # pull the latest partiality first\n  goose ui stop",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dir := a.cfg.UIDir()
 			p := a.out(cmd)
 			if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
-				p.println(p.S(p.dim, "installing partiality → "+dir))
+				if !yes {
+					ok, err := confirm(cmd, fmt.Sprintf("partiality (the web UI) isn't installed.\nThis will clone %s\ninto %s\nContinue? [y/N] ", partialityRepo, dir))
+					if err != nil || !ok {
+						return err
+					}
+				}
 				if err := git(cmd, "clone", "--depth", "1", partialityRepo, dir); err != nil {
 					return err
 				}
@@ -73,27 +87,145 @@ Like serve, the browser is a remote: music plays on this machine.`,
 					return err
 				}
 			}
-			if !tailscale {
-				if conn, err := net.DialTimeout("tcp", addr, 300*time.Millisecond); err == nil {
-					conn.Close()
-					p.println(p.S(p.accent, "● ") + "http://" + addr + p.S(p.dim, " (already running)"))
-					if !noOpen {
-						openURL("http://" + addr)
-					}
-					return nil
+			if !tailscale && listening(addr) {
+				p.println(p.S(p.accent, "● ") + "http://" + addr + p.S(p.dim, " (already running)"))
+				if !noOpen {
+					openURL("http://" + addr)
 				}
+				return nil
 			}
-			return a.serve(cmd, addr, dir, tailscale, !noOpen)
+			if err := startUI(addr, dir, tailscale); err != nil {
+				return err
+			}
+			out, _ := os.ReadFile(uiLog())
+			fmt.Fprint(cmd.OutOrStdout(), string(out))
+			p.println(p.S(p.dim, "running in the background — goose ui stop to stop"))
+			if !noOpen {
+				openURL("http://" + addr)
+			}
+			return nil
 		},
 	}
 	c.Flags().StringVar(&addr, "addr", "127.0.0.1:7777", "local listen address")
 	c.Flags().BoolVar(&tailscale, "tailscale", false, "also listen on this machine's tailnet IP")
 	c.Flags().BoolVar(&update, "update", false, "git pull the latest partiality before starting")
 	c.Flags().BoolVar(&noOpen, "no-open", false, "don't open a browser")
+	c.Flags().BoolVarP(&yes, "yes", "y", false, "install partiality without asking")
+	c.AddCommand(&cobra.Command{
+		Use:   "stop",
+		Short: "Stop the background web UI server",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			p := a.out(cmd)
+			if !stopUI() {
+				p.println(p.S(p.dim, "the web UI isn't running in the background"))
+				return nil
+			}
+			p.println("stopped the web UI")
+			return nil
+		},
+	})
 	return c
 }
 
 const partialityRepo = "https://github.com/lubabs770/partiality"
+
+func uiLog() string { return filepath.Join(config.RuntimeDir(), "ui.log") }
+func uiPID() string { return filepath.Join(config.RuntimeDir(), "ui.pid") }
+
+func listening(addr string) bool {
+	conn, err := net.DialTimeout("tcp", addr, 300*time.Millisecond)
+	if err == nil {
+		conn.Close()
+	}
+	return err == nil
+}
+
+// confirm asks a yes/no question on the terminal; default no. Without a
+// terminal it refuses rather than guessing.
+func confirm(cmd *cobra.Command, q string) (bool, error) {
+	if !term.IsTerminal(os.Stdin.Fd()) {
+		return false, usage(errors.New("partiality isn't installed; run goose ui in a terminal to confirm, or pass --yes"))
+	}
+	fmt.Fprint(cmd.ErrOrStderr(), q)
+	ans, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+	ans = strings.ToLower(strings.TrimSpace(ans))
+	return ans == "y" || ans == "yes", nil
+}
+
+// startUI runs `goose serve` detached, logging to ui.log, and waits for it to
+// accept connections.
+func startUI(addr, dir string, tailscale bool) error {
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(config.RuntimeDir(), 0o700); err != nil {
+		return err
+	}
+	logf, err := os.OpenFile(uiLog(), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		return err
+	}
+	defer logf.Close()
+	args := []string{"serve", "--no-color", "--addr", addr, "--ui", dir}
+	if tailscale {
+		args = append(args, "--tailscale")
+	}
+	c := exec.Command(exe, args...)
+	c.Stdout, c.Stderr = logf, logf
+	mpv.Detach(c)
+	if err := c.Start(); err != nil {
+		return err
+	}
+	exited := make(chan struct{})
+	go func() { _ = c.Wait(); close(exited) }()
+	for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); {
+		select {
+		case <-exited:
+			out, _ := os.ReadFile(uiLog())
+			return fmt.Errorf("the web UI server exited: %s", strings.TrimSpace(string(out)))
+		case <-time.After(100 * time.Millisecond):
+		}
+		if listening(addr) {
+			return os.WriteFile(uiPID(), []byte(strconv.Itoa(c.Process.Pid)), 0o600)
+		}
+	}
+	_ = c.Process.Kill()
+	return fmt.Errorf("the web UI server didn't start within 10s (log: %s)", uiLog())
+}
+
+// stopUI ends the background server from ui.pid. It reports false when there
+// is none.
+func stopUI() bool {
+	b, err := os.ReadFile(uiPID())
+	if err != nil {
+		return false
+	}
+	defer os.Remove(uiPID())
+	pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
+	if err != nil || !isServe(pid) {
+		return false
+	}
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	if proc.Signal(os.Interrupt) != nil {
+		return proc.Kill() == nil
+	}
+	return true
+}
+
+// isServe guards against a stale pid file pointing at a reused pid.
+// ponytail: uses ps, so on Windows it trusts the pid file.
+func isServe(pid int) bool {
+	if runtime.GOOS == "windows" {
+		return true
+	}
+	out, err := exec.Command("ps", "-p", strconv.Itoa(pid), "-o", "command=").Output()
+	return err == nil && strings.Contains(string(out), " serve ")
+}
 
 func git(cmd *cobra.Command, args ...string) error {
 	g := exec.CommandContext(cmd.Context(), "git", args...)
